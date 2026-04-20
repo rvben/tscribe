@@ -44,10 +44,20 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Install cargo-about
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
+
+      - name: Generate third-party licenses
+        run: cargo about generate about.hbs -o THIRD_PARTY_LICENSES.md
+
       - name: Package
         run: |
-          mkdir -p dist
-          tar -czf dist/tscribe-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release tscribe
+          mkdir -p dist staging
+          cp target/${{ matrix.target }}/release/tscribe staging/
+          cp LICENSE README.md CHANGELOG.md THIRD_PARTY_LICENSES.md staging/
+          tar -czf dist/tscribe-${{ matrix.target }}.tar.gz -C staging .
 
       - uses: actions/upload-artifact@v4
         with:

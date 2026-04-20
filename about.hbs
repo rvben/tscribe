@@ -1,0 +1,34 @@
+# Third-Party Licenses
+
+This file lists the licenses of all third-party Rust crates that `tscribe`
+depends on, in compliance with their respective terms. `tscribe` itself is
+licensed under the MIT License — see [`LICENSE`](LICENSE).
+
+---
+
+## Overview
+
+{{#each overview}}
+- **{{name}}** ({{count}} crate{{#if (ne count 1)}}s{{/if}})
+{{/each}}
+
+---
+
+{{#each licenses}}
+## {{name}}
+
+{{#if used_by}}
+Used by:
+
+{{#each used_by}}
+- [{{crate.name}} {{crate.version}}]({{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}})
+{{/each}}
+{{/if}}
+
+```
+{{{text}}}
+```
+
+---
+
+{{/each}}

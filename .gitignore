@@ -24,3 +24,6 @@ docs/superpowers/
 *.mp3
 *.wav
 *.bin
+
+# Generated at release time; see about.toml + about.hbs
+THIRD_PARTY_LICENSES.md

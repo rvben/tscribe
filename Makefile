@@ -1,4 +1,4 @@
-.PHONY: init build test lint fmt fmt-check clippy nextest deny ci clean release-patch release-minor release-major
+.PHONY: init build test lint fmt fmt-check clippy nextest deny licenses ci clean release-patch release-minor release-major
 
 init:
 	@which cargo > /dev/null || (echo "cargo not found, install from https://rustup.rs" && exit 1)
@@ -26,6 +26,10 @@ clippy:
 
 deny:
 	cargo deny check
+
+licenses:
+	@which cargo-about > /dev/null 2>&1 || cargo install cargo-about --locked
+	cargo about generate about.hbs -o THIRD_PARTY_LICENSES.md
 
 ci: fmt-check clippy nextest deny
 

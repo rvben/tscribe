@@ -128,4 +128,7 @@ tscribe completions <shell>  Generate shell completions
 
 ## License
 
-MIT
+`tscribe` is released under the [MIT License](LICENSE). Third-party dependencies
+are covered by their own licenses; a full `THIRD_PARTY_LICENSES.md` manifest is
+generated via `cargo-about` and bundled into each release tarball. Regenerate
+locally with `make licenses`.
