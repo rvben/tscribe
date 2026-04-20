@@ -2,6 +2,9 @@ use crate::transcript::TranscriptEntry;
 use std::fmt;
 
 pub mod json;
+pub mod srt;
+pub mod txt;
+pub mod vtt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
@@ -51,9 +54,11 @@ pub struct RenderOptions {
 
 pub fn render(entry: &TranscriptEntry, format: Format, _opts: RenderOptions) -> String {
     match format {
+        Format::Markdown => String::new(), // Task 7
+        Format::Text => txt::render(entry),
         Format::Json => json::render(entry),
-        // Other variants added in later tasks.
-        _ => String::new(),
+        Format::Srt => srt::render(entry),
+        Format::Vtt => vtt::render(entry),
     }
 }
 
