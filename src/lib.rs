@@ -4,6 +4,7 @@ pub mod audio;
 pub mod cache;
 pub mod config;
 pub mod deps;
+pub mod download;
 pub mod error;
 pub mod format;
 pub mod model;
