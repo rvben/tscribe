@@ -1,5 +1,6 @@
 //! tscribe — transcribe any video/audio URL into markdown.
 
+pub mod audio;
 pub mod cache;
 pub mod config;
 pub mod deps;
