@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
+use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -87,6 +89,84 @@ pub fn verify(model: &Model, path: &Path) -> Result<()> {
             model.name, model.sha256, actual
         )))
     }
+}
+
+/// Download a model to its target path with progress callbacks.
+/// Verifies SHA256 after download. Atomic via .tmp + rename.
+pub async fn download<F>(
+    model: &Model,
+    model_dir: &Path,
+    on_progress: F,
+) -> Result<PathBuf>
+where
+    F: Fn(u64, Option<u64>) + Send + Sync,
+{
+    std::fs::create_dir_all(model_dir)?;
+    let dest = model_path(model_dir, model.name);
+    let tmp = dest.with_extension("bin.tmp");
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60 * 60))
+        .build()
+        .map_err(|e| Error::ModelDownload(e.to_string()))?;
+
+    let resp = client
+        .get(model.url)
+        .send()
+        .await
+        .map_err(|e| Error::ModelDownload(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        return Err(Error::ModelDownload(format!(
+            "HTTP {} from {}",
+            resp.status(),
+            model.url
+        )));
+    }
+
+    let total = resp.content_length();
+    let mut file = std::fs::File::create(&tmp)?;
+    let mut stream = resp.bytes_stream();
+    let mut downloaded: u64 = 0;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| Error::ModelDownload(e.to_string()))?;
+        file.write_all(&chunk)?;
+        downloaded += chunk.len() as u64;
+        on_progress(downloaded, total);
+    }
+    file.sync_all()?;
+    drop(file);
+
+    // Verify checksum, abort if bad.
+    if let Err(e) = verify(model, &tmp) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+
+    std::fs::rename(&tmp, &dest)?;
+    Ok(dest)
+}
+
+/// Ensure model is present. Returns the path. Calls `on_progress` for each chunk
+/// during download, or never if cached.
+pub async fn ensure<F>(
+    model: &Model,
+    model_dir: &Path,
+    on_progress: F,
+) -> Result<PathBuf>
+where
+    F: Fn(u64, Option<u64>) + Send + Sync,
+{
+    let dest = model_path(model_dir, model.name);
+    if dest.exists() {
+        // Verify cached file; on mismatch, re-download.
+        if verify(model, &dest).is_ok() {
+            return Ok(dest);
+        }
+        std::fs::remove_file(&dest)?;
+    }
+    download(model, model_dir, on_progress).await
 }
 
 #[cfg(test)]
