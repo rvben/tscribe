@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "url": "https://example.com/test",
+  "metadata": {
+    "title": "Test Talk",
+    "author": "Test Author",
+    "site": "example.com",
+    "duration_seconds": 12,
+    "uploaded_at": "2026-01-01T12:00:00Z"
+  },
+  "transcription": {
+    "model": "small.en",
+    "language": "en",
+    "transcribed_at": "2026-04-20T21:30:00Z",
+    "tscribe_version": "0.1.0",
+    "segments": [
+      {"start": 0.0, "end": 3.5, "text": "Hello and welcome to this test."},
+      {"start": 3.5, "end": 7.2, "text": "We are demonstrating the transcript format."},
+      {"start": 7.2, "end": 12.0, "text": "Goodbye for now."}
+    ]
+  }
+}
