@@ -1,0 +1,64 @@
+[package]
+name = "tscribe"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Transcribe any video/audio URL into agent-friendly markdown using whisper.cpp"
+authors = ["Ruben Jongejan <ruben.jongejan@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/rvben/tscribe"
+homepage = "https://github.com/rvben/tscribe"
+readme = "README.md"
+keywords = ["transcription", "whisper", "yt-dlp", "cli", "speech-to-text"]
+categories = ["command-line-utilities", "multimedia::audio"]
+
+[lib]
+name = "tscribe"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tscribe"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+thiserror = "2"
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "process", "signal"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+sha2 = "0.10"
+hex = "0.4"
+indicatif = "0.17"
+directories = "5"
+which = "7"
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+hound = "3"
+chrono = { version = "0.4", features = ["serde"] }
+futures-util = "0.3"
+url = "2"
+
+[dependencies.whisper-rs]
+version = "0.13"
+default-features = false
+features = ["whisper-cpp-log"]
+
+[target.'cfg(target_os = "macos")'.dependencies.whisper-rs]
+version = "0.13"
+default-features = false
+features = ["whisper-cpp-log", "metal"]
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+wiremock = "0.6"
+tempfile = "3"
+serial_test = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
