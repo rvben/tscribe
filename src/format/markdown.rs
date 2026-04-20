@@ -25,11 +25,11 @@ pub fn render(entry: &TranscriptEntry, opts: RenderOptions) -> String {
             }
             current_segs.push(seg);
 
-            let next_pause = segs.get(i + 1).map(|n| n.start - seg.end).unwrap_or(f64::MAX);
-            let ends_sentence = matches!(
-                seg.text.trim().chars().last(),
-                Some('.' | '?' | '!')
-            );
+            let next_pause = segs
+                .get(i + 1)
+                .map(|n| n.start - seg.end)
+                .unwrap_or(f64::MAX);
+            let ends_sentence = matches!(seg.text.trim().chars().last(), Some('.' | '?' | '!'));
             let break_now = next_pause >= 2.0
                 || current_segs.len() >= 6
                 || (ends_sentence && next_pause >= 1.5);

@@ -46,7 +46,10 @@ impl Cache {
 
     fn entry_path(&self, key: &str) -> PathBuf {
         let shard = &key[..2];
-        self.paths.transcript_dir.join(shard).join(format!("{key}.json"))
+        self.paths
+            .transcript_dir
+            .join(shard)
+            .join(format!("{key}.json"))
     }
 
     pub fn get(&self, key: &str) -> Result<Option<TranscriptEntry>> {
@@ -154,7 +157,10 @@ mod tests {
     #[test]
     fn key_differs_per_input() {
         let base = Cache::key("https://example.com", "small.en", "en");
-        assert_ne!(base, Cache::key("https://example.com/other", "small.en", "en"));
+        assert_ne!(
+            base,
+            Cache::key("https://example.com/other", "small.en", "en")
+        );
         assert_ne!(base, Cache::key("https://example.com", "small", "en"));
         assert_ne!(base, Cache::key("https://example.com", "small.en", "nl"));
     }
@@ -164,7 +170,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = Cache::new(Paths::with_root(dir.path().to_path_buf())).unwrap();
         let entry = fixture_entry();
-        let key = Cache::key(&entry.url, &entry.transcription.model, &entry.transcription.language);
+        let key = Cache::key(
+            &entry.url,
+            &entry.transcription.model,
+            &entry.transcription.language,
+        );
         cache.put(&key, &entry).unwrap();
         let loaded = cache.get(&key).unwrap().unwrap();
         assert_eq!(loaded, entry);
@@ -193,7 +203,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = Cache::new(Paths::with_root(dir.path().to_path_buf())).unwrap();
         let entry = fixture_entry();
-        let key = Cache::key(&entry.url, &entry.transcription.model, &entry.transcription.language);
+        let key = Cache::key(
+            &entry.url,
+            &entry.transcription.model,
+            &entry.transcription.language,
+        );
         cache.put(&key, &entry).unwrap();
         let list = cache.list().unwrap();
         assert_eq!(list.len(), 1);
@@ -205,7 +219,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = Cache::new(Paths::with_root(dir.path().to_path_buf())).unwrap();
         let entry = fixture_entry();
-        let key = Cache::key(&entry.url, &entry.transcription.model, &entry.transcription.language);
+        let key = Cache::key(
+            &entry.url,
+            &entry.transcription.model,
+            &entry.transcription.language,
+        );
         cache.put(&key, &entry).unwrap();
         cache.clear().unwrap();
         assert!(cache.get(&key).unwrap().is_none());
@@ -217,7 +235,11 @@ mod tests {
         let paths = Paths::with_root(dir.path().to_path_buf());
         let cache = Cache::new(paths.clone()).unwrap();
         let entry = fixture_entry();
-        let key = Cache::key(&entry.url, &entry.transcription.model, &entry.transcription.language);
+        let key = Cache::key(
+            &entry.url,
+            &entry.transcription.model,
+            &entry.transcription.language,
+        );
         cache.put(&key, &entry).unwrap();
 
         // Simulate older schema on disk.

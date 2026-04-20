@@ -62,9 +62,8 @@ impl Reporter {
                 .unwrap()
                 .progress_chars("=>-"),
             ),
-            None => ProgressBar::new_spinner().with_style(
-                ProgressStyle::with_template("{spinner:.cyan} {msg} {bytes}").unwrap(),
-            ),
+            None => ProgressBar::new_spinner()
+                .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg} {bytes}").unwrap()),
         };
         pb.set_message("Downloading model");
         Some(pb)
@@ -84,7 +83,9 @@ impl Reporter {
         }
         eprintln!(
             "✓ Done ({})",
-            HumanBytes(0).to_string().replace("0 B", &format_duration(total))
+            HumanBytes(0)
+                .to_string()
+                .replace("0 B", &format_duration(total))
         );
     }
 }

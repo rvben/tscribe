@@ -1,8 +1,7 @@
 use crate::transcript::TranscriptEntry;
 
 pub fn render(entry: &TranscriptEntry) -> String {
-    serde_json::to_string_pretty(entry)
-        .expect("TranscriptEntry serializes")
+    serde_json::to_string_pretty(entry).expect("TranscriptEntry serializes")
 }
 
 #[cfg(test)]

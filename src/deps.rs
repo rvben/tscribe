@@ -11,15 +11,13 @@ pub struct Dep {
 pub const YT_DLP: Dep = Dep {
     name: "yt-dlp",
     binary: "yt-dlp",
-    install_hint:
-        "macOS:        brew install yt-dlp\n  Debian/Ubuntu: apt install yt-dlp\n  Arch:         pacman -S yt-dlp\n  Any:          pipx install yt-dlp",
+    install_hint: "macOS:        brew install yt-dlp\n  Debian/Ubuntu: apt install yt-dlp\n  Arch:         pacman -S yt-dlp\n  Any:          pipx install yt-dlp",
 };
 
 pub const FFMPEG: Dep = Dep {
     name: "ffmpeg",
     binary: "ffmpeg",
-    install_hint:
-        "macOS:        brew install ffmpeg\n  Debian/Ubuntu: apt install ffmpeg\n  Arch:         pacman -S ffmpeg",
+    install_hint: "macOS:        brew install ffmpeg\n  Debian/Ubuntu: apt install ffmpeg\n  Arch:         pacman -S ffmpeg",
 };
 
 /// Returns the resolved path to the dep binary, or a structured error.

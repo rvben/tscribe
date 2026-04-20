@@ -39,8 +39,8 @@ pub async fn convert_to_wav(input: &Path, output_dir: &Path) -> Result<PathBuf> 
 
 /// Read a 16kHz mono PCM s16le WAV into f32 samples in [-1.0, 1.0].
 pub fn read_wav_samples(path: &Path) -> Result<Vec<f32>> {
-    let mut reader = hound::WavReader::open(path)
-        .map_err(|e| Error::Audio(format!("open wav: {e}")))?;
+    let mut reader =
+        hound::WavReader::open(path).map_err(|e| Error::Audio(format!("open wav: {e}")))?;
     let spec = reader.spec();
     if spec.sample_rate != 16_000 || spec.channels != 1 || spec.bits_per_sample != 16 {
         return Err(Error::Audio(format!(

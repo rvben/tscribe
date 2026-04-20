@@ -32,8 +32,7 @@ mod tests {
 
     #[test]
     fn renders_vtt() {
-        let entry: crate::transcript::TranscriptEntry =
-            serde_json::from_str(FIXTURE).unwrap();
+        let entry: crate::transcript::TranscriptEntry = serde_json::from_str(FIXTURE).unwrap();
         assert_eq!(render(&entry), EXPECTED);
     }
 }

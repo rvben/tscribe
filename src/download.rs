@@ -86,9 +86,10 @@ pub async fn download(url: &str, workdir: &Path) -> Result<DownloadResult> {
 }
 
 fn site_from_url(url: &str) -> Option<String> {
-    url::Url::parse(url)
-        .ok()
-        .and_then(|u| u.host_str().map(|h| h.trim_start_matches("www.").to_string()))
+    url::Url::parse(url).ok().and_then(|u| {
+        u.host_str()
+            .map(|h| h.trim_start_matches("www.").to_string())
+    })
 }
 
 fn parse_upload_date(s: Option<&str>) -> Option<DateTime<Utc>> {
