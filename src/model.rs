@@ -16,44 +16,44 @@ pub struct Model {
 pub const REGISTRY: &[Model] = &[
     Model {
         name: "tiny.en",
-        size_mb: 39,
+        size_mb: 75,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
-        sha256: "cb0bfacb483dde1bbb80b0b8928ad956a2b59ff213f2fbffdadcbfadc45d7b95",
+        sha256: "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
         multilingual: false,
     },
     Model {
         name: "base.en",
         size_mb: 142,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
-        sha256: "6b0978fafb166e0f1fda252edf99b0969acf862f43b35549908b10f2ffdd9ff5",
+        sha256: "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002",
         multilingual: false,
     },
     Model {
         name: "small.en",
         size_mb: 466,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin",
-        sha256: "144e811bd1416ca61fdaeb5ff1685c2056a8aba37ab31c24c5d62fb873b028b8",
+        sha256: "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d",
         multilingual: false,
     },
     Model {
         name: "medium.en",
         size_mb: 1500,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin",
-        sha256: "29bab8f385a2b32b2259221fdcb6c50ad72f1aaf47e2413a35016b4faa43da84",
+        sha256: "cc37e93478338ec7700281a7ac30a10128929eb8f427dda2e865faa8f6da4356",
         multilingual: false,
     },
     Model {
         name: "small",
         size_mb: 466,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-        sha256: "141a4b15f0e2029c3a45d31ae7ca647c29f51be41429be0c68ea1487a49cac1e",
+        sha256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
         multilingual: true,
     },
     Model {
         name: "large-v3",
         size_mb: 2900,
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
-        sha256: "1d22e454c8b90d843643351c45b3dac25127957be3bc6f027a8866f386f25bd8",
+        sha256: "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2",
         multilingual: true,
     },
 ];
@@ -93,11 +93,7 @@ pub fn verify(model: &Model, path: &Path) -> Result<()> {
 
 /// Download a model to its target path with progress callbacks.
 /// Verifies SHA256 after download. Atomic via .tmp + rename.
-pub async fn download<F>(
-    model: &Model,
-    model_dir: &Path,
-    on_progress: F,
-) -> Result<PathBuf>
+pub async fn download<F>(model: &Model, model_dir: &Path, on_progress: F) -> Result<PathBuf>
 where
     F: Fn(u64, Option<u64>) + Send + Sync,
 {
@@ -150,11 +146,7 @@ where
 
 /// Ensure model is present. Returns the path. Calls `on_progress` for each chunk
 /// during download, or never if cached.
-pub async fn ensure<F>(
-    model: &Model,
-    model_dir: &Path,
-    on_progress: F,
-) -> Result<PathBuf>
+pub async fn ensure<F>(model: &Model, model_dir: &Path, on_progress: F) -> Result<PathBuf>
 where
     F: Fn(u64, Option<u64>) + Send + Sync,
 {
