@@ -2,6 +2,7 @@ use crate::transcript::TranscriptEntry;
 use std::fmt;
 
 pub mod json;
+pub mod markdown;
 pub mod srt;
 pub mod txt;
 pub mod vtt;
@@ -52,9 +53,9 @@ pub struct RenderOptions {
     pub timestamps: bool,
 }
 
-pub fn render(entry: &TranscriptEntry, format: Format, _opts: RenderOptions) -> String {
+pub fn render(entry: &TranscriptEntry, format: Format, opts: RenderOptions) -> String {
     match format {
-        Format::Markdown => String::new(), // Task 7
+        Format::Markdown => markdown::render(entry, opts),
         Format::Text => txt::render(entry),
         Format::Json => json::render(entry),
         Format::Srt => srt::render(entry),
