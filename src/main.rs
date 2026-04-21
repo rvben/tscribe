@@ -107,14 +107,34 @@ fn run_cache(action: CacheAction, paths: &Paths) -> Result<(), Error> {
     let cache = Cache::new(paths.clone())?;
     match action {
         CacheAction::List => {
-            for (key, entry) in cache.list()? {
+            let rows = cache.list()?;
+            if rows.is_empty() {
+                eprintln!("(cache empty)");
+            } else {
+                // Align MODEL to the widest known name so rows line up.
+                let model_w = rows
+                    .iter()
+                    .map(|(_, e)| e.model.len())
+                    .max()
+                    .unwrap_or(5)
+                    .max(5);
                 println!(
-                    "{}  {}  {}  {}",
-                    &key[..12],
-                    entry.transcribed_at.format("%Y-%m-%d"),
-                    entry.model,
-                    entry.url
+                    "{:<12}  {:<10}  {:<width$}  URL",
+                    "KEY",
+                    "DATE",
+                    "MODEL",
+                    width = model_w
                 );
+                for (key, entry) in rows {
+                    println!(
+                        "{:<12}  {:<10}  {:<width$}  {}",
+                        &key[..12],
+                        entry.transcribed_at.format("%Y-%m-%d"),
+                        entry.model,
+                        entry.url,
+                        width = model_w
+                    );
+                }
             }
         }
         CacheAction::Clear => {
