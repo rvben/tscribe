@@ -63,21 +63,31 @@ pub fn render(entry: &TranscriptEntry, opts: RenderOptions) -> String {
 
 fn frontmatter(entry: &TranscriptEntry) -> String {
     let mut out = String::new();
-    out.push_str(&format!("source: {}\n", entry.url));
+    // All string values are double-quoted so a title containing a colon,
+    // leading dash, or other YAML-significant character can't corrupt the
+    // frontmatter. The timestamp is emitted as a bare RFC3339 scalar since
+    // that round-trips through every YAML parser.
+    out.push_str(&format!("source: {}\n", yaml_quote(&entry.url)));
     if let Some(title) = entry.metadata.title.as_deref() {
-        out.push_str(&format!("title: {title}\n"));
+        out.push_str(&format!("title: {}\n", yaml_quote(title)));
     }
     if let Some(author) = entry.metadata.author.as_deref() {
-        out.push_str(&format!("author: {author}\n"));
+        out.push_str(&format!("author: {}\n", yaml_quote(author)));
     }
     if let Some(site) = entry.metadata.site.as_deref() {
-        out.push_str(&format!("site: {site}\n"));
+        out.push_str(&format!("site: {}\n", yaml_quote(site)));
     }
     if let Some(d) = entry.metadata.duration_seconds {
-        out.push_str(&format!("duration: \"{}\"\n", hh_mm_ss(d)));
+        out.push_str(&format!("duration: {}\n", yaml_quote(&hh_mm_ss(d))));
     }
-    out.push_str(&format!("language: {}\n", entry.transcription.language));
-    out.push_str(&format!("model: {}\n", entry.transcription.model));
+    out.push_str(&format!(
+        "language: {}\n",
+        yaml_quote(&entry.transcription.language)
+    ));
+    out.push_str(&format!(
+        "model: {}\n",
+        yaml_quote(&entry.transcription.model)
+    ));
     out.push_str(&format!(
         "transcribed_at: {}\n",
         entry
@@ -87,8 +97,28 @@ fn frontmatter(entry: &TranscriptEntry) -> String {
     ));
     out.push_str(&format!(
         "tscribe_version: {}\n",
-        entry.transcription.tscribe_version
+        yaml_quote(&entry.transcription.tscribe_version)
     ));
+    out
+}
+
+/// Emit a YAML double-quoted scalar. Escapes the characters YAML requires
+/// inside `"..."`: backslash, double-quote, and the ASCII control chars.
+fn yaml_quote(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
     out
 }
 
@@ -125,5 +155,28 @@ mod tests {
         let entry: TranscriptEntry = serde_json::from_str(FIXTURE).unwrap();
         let opts = RenderOptions { timestamps: true };
         assert_eq!(render(&entry, opts), EXPECTED_TS);
+    }
+
+    #[test]
+    fn yaml_quote_escapes_special_chars() {
+        assert_eq!(yaml_quote("plain"), "\"plain\"");
+        assert_eq!(
+            yaml_quote("has a \"quote\" and \\ slash"),
+            r#""has a \"quote\" and \\ slash""#
+        );
+        assert_eq!(yaml_quote("line1\nline2"), "\"line1\\nline2\"");
+        assert_eq!(yaml_quote("tab\there"), "\"tab\\there\"");
+        assert_eq!(yaml_quote("bell\x07"), "\"bell\\x07\"");
+    }
+
+    #[test]
+    fn yaml_quote_handles_colon_and_dash() {
+        // These are the characters that made unquoted output fragile: a
+        // title starting with `-` or containing `:` would corrupt YAML.
+        assert_eq!(
+            yaml_quote("Breaking: the big story"),
+            "\"Breaking: the big story\""
+        );
+        assert_eq!(yaml_quote("- leading dash"), "\"- leading dash\"");
     }
 }

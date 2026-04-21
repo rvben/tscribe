@@ -25,7 +25,7 @@ fn e2e_transcribe_to_markdown_stdout() {
         .success()
         .stdout(predicate::str::contains("---"))
         .stdout(predicate::str::contains("source: "))
-        .stdout(predicate::str::contains("model: tiny.en"));
+        .stdout(predicate::str::contains("model: \"tiny.en\""));
 }
 
 #[test]
