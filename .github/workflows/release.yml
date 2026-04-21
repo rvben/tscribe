@@ -63,11 +63,15 @@ jobs:
           cp target/${{ matrix.target }}/release/tscribe staging/
           cp LICENSE README.md CHANGELOG.md THIRD_PARTY_LICENSES.md staging/
           tar -czf dist/tscribe-${{ matrix.target }}.tar.gz -C staging .
+          shasum -a 256 dist/tscribe-${{ matrix.target }}.tar.gz \
+            | awk '{print $1}' > dist/tscribe-${{ matrix.target }}.tar.gz.sha256
 
       - uses: actions/upload-artifact@v4
         with:
           name: tscribe-${{ matrix.target }}
-          path: dist/tscribe-${{ matrix.target }}.tar.gz
+          path: |
+            dist/tscribe-${{ matrix.target }}.tar.gz
+            dist/tscribe-${{ matrix.target }}.tar.gz.sha256
 
   release:
     needs: build
@@ -82,5 +86,101 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.tar.gz
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
           generate_release_notes: true
+
+  publish-crate:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+          merge-multiple: true
+
+      - name: Compute SHA256 hashes
+        id: hashes
+        run: |
+          for target in x86_64-apple-darwin aarch64-apple-darwin \
+                        x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            sha=$(cat /tmp/artifacts/tscribe-${target}.tar.gz.sha256)
+            key=$(echo "${target}" | tr '-' '_')
+            echo "${key}=${sha}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+
+          cat > /tmp/tscribe.rb << 'FORMULA'
+          class Tscribe < Formula
+            desc "Transcribe any video/audio URL into agent-friendly markdown using whisper.cpp"
+            homepage "https://github.com/rvben/tscribe"
+            version "VERSION_NUM"
+            license "MIT"
+
+            depends_on "ffmpeg"
+            depends_on "yt-dlp"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/rvben/tscribe/releases/download/VERSION/tscribe-aarch64-apple-darwin.tar.gz"
+                sha256 "SHA_AARCH64_APPLE_DARWIN"
+              else
+                url "https://github.com/rvben/tscribe/releases/download/VERSION/tscribe-x86_64-apple-darwin.tar.gz"
+                sha256 "SHA_X86_64_APPLE_DARWIN"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/rvben/tscribe/releases/download/VERSION/tscribe-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "SHA_AARCH64_UNKNOWN_LINUX_GNU"
+              else
+                url "https://github.com/rvben/tscribe/releases/download/VERSION/tscribe-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "SHA_X86_64_UNKNOWN_LINUX_GNU"
+              end
+            end
+
+            def install
+              bin.install "tscribe"
+            end
+
+            test do
+              system "#{bin}/tscribe", "--version"
+            end
+          end
+          FORMULA
+
+          sed -i "s/VERSION_NUM/${VERSION_NUM}/g" /tmp/tscribe.rb
+          sed -i "s|VERSION|${VERSION}|g" /tmp/tscribe.rb
+          sed -i "s/SHA_AARCH64_APPLE_DARWIN/${{ steps.hashes.outputs.aarch64_apple_darwin }}/g" /tmp/tscribe.rb
+          sed -i "s/SHA_X86_64_APPLE_DARWIN/${{ steps.hashes.outputs.x86_64_apple_darwin }}/g" /tmp/tscribe.rb
+          sed -i "s/SHA_AARCH64_UNKNOWN_LINUX_GNU/${{ steps.hashes.outputs.aarch64_unknown_linux_gnu }}/g" /tmp/tscribe.rb
+          sed -i "s/SHA_X86_64_UNKNOWN_LINUX_GNU/${{ steps.hashes.outputs.x86_64_unknown_linux_gnu }}/g" /tmp/tscribe.rb
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/rvben/homebrew-tap.git" /tmp/tap
+          mkdir -p /tmp/tap/Formula
+          cp /tmp/tscribe.rb /tmp/tap/Formula/tscribe.rb
+          cd /tmp/tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/tscribe.rb
+          git diff --cached --quiet || git commit -m "Update tscribe to ${VERSION}"
+          git push
