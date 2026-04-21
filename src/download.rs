@@ -156,8 +156,7 @@ fn classify_yt_dlp_error(stderr: &[u8]) -> Error {
     let text = String::from_utf8_lossy(stderr);
     let message = text
         .lines()
-        .filter(|l| l.contains("ERROR:"))
-        .next_back()
+        .rfind(|l| l.contains("ERROR:"))
         .map(clean_yt_dlp_error_line)
         .unwrap_or_else(|| stderr_tail(&text));
 
