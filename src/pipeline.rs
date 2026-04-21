@@ -80,9 +80,9 @@ pub async fn run(
     } else {
         let path = model::model_path(&paths.model_dir, model.name);
         if !path.exists() {
-            return Err(crate::error::Error::ModelDownload(format!(
-                "model {} not present and --no-download set",
-                model.name
+            return Err(crate::error::Error::ModelMissing(format!(
+                "model {} not installed (run `tscribe models download {}` or drop --no-download)",
+                model.name, model.name
             )));
         }
         path

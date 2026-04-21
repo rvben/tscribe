@@ -23,6 +23,9 @@ pub enum Error {
     #[error("model download failed: {0}")]
     ModelDownload(String),
 
+    #[error("{0}")]
+    ModelMissing(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
@@ -41,7 +44,7 @@ impl Error {
             Error::Download(_) => 3,
             Error::Transcribe(_) => 4,
             Error::MissingDep { .. } => 5,
-            Error::ModelDownload(_) => 6,
+            Error::ModelDownload(_) | Error::ModelMissing(_) => 6,
             _ => 1,
         }
     }
@@ -76,5 +79,21 @@ mod tests {
         // Must not masquerade as a yt-dlp failure.
         let msg = format!("{}", Error::Unsupported("no audio".into()));
         assert_eq!(msg, "no audio");
+    }
+
+    #[test]
+    fn model_missing_has_no_download_prefix() {
+        // The user hasn't downloaded a model; phrasing it as "download
+        // failed" misdiagnoses the problem.
+        let msg = format!(
+            "{}",
+            Error::ModelMissing("model small.en not installed".into())
+        );
+        assert_eq!(msg, "model small.en not installed");
+    }
+
+    #[test]
+    fn model_missing_exits_6() {
+        assert_eq!(Error::ModelMissing("x".into()).exit_code(), 6);
     }
 }
