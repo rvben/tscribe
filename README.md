@@ -6,11 +6,45 @@
 
 > Transcribe any video/audio URL into agent-friendly markdown.
 
+**Agent-friendly** means: structured YAML frontmatter, stable exit codes so
+scripts can branch on failure mode, and a content-addressed cache so retries
+cost nothing. Everything runs locally after the first model download — no API
+keys, no cloud calls.
+
 `tscribe` shells out to [yt-dlp](https://github.com/yt-dlp/yt-dlp) for
 downloading, [ffmpeg](https://ffmpeg.org/) for audio conversion, and embeds
 [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (via
 [`whisper-rs`](https://crates.io/crates/whisper-rs)) for transcription.
-Transcripts are cached so re-running is instant.
+
+## What it looks like
+
+```
+$ tscribe https://www.youtube.com/watch?v=dQw4w9WgXcQ
+✓ Media: "Never Gonna Give You Up (Official Video)" — Rick Astley (3m33s)
+✓ Model ready: small.en
+✓ Audio downloaded
+✓ Audio converted
+✓ Transcribed 16 segments
+---
+source: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+title: "Never Gonna Give You Up (Official Video)"
+...
+---
+
+# Never Gonna Give You Up (Official Video)
+
+Never gonna give you up, never gonna let you down...
+
+✓ Done (0m42s)
+```
+
+Re-running the same URL is instant:
+
+```
+$ tscribe https://www.youtube.com/watch?v=dQw4w9WgXcQ
+⚡ Cache hit: "Never Gonna Give You Up (Official Video)" — Rick Astley (3m33s)
+...
+```
 
 ## Install
 
@@ -36,6 +70,10 @@ Grab the latest from [Releases](https://github.com/rvben/tscribe/releases).
 
 ## Quickstart
 
+> **Heads-up:** first run downloads the default `small.en` model (~466 MB,
+> roughly 30-60s on a good connection) into your cache dir. Every run after
+> that uses the cached model — and cached transcripts come back instantly.
+
 ```sh
 # Transcribe an X (Twitter) video
 tscribe https://x.com/user/status/123456789
@@ -59,26 +97,28 @@ By default, `tscribe` outputs markdown with YAML frontmatter:
 
 ```markdown
 ---
-source: https://x.com/...
-title: ...
-author: "@..."
+source: "https://x.com/..."
+title: "Talk Title"
+author: "@speaker"
+site: "x.com"
 duration: "00:55:40"
-language: en
-model: small.en
+language: "en"
+model: "small.en"
 transcribed_at: 2026-04-20T21:30:00Z
-tscribe_version: 0.1.0
+tscribe_version: "0.2.0"
 ---
 
-# Title
+# Talk Title
 
 Transcript paragraphs here...
 ```
 
+Every string is double-quoted so a colon, dash, or hash in the title can't
+corrupt the frontmatter — parse it with any YAML library and it round-trips.
+
 Other formats: `txt`, `json`, `srt`, `vtt`.
 
 ## Models
-
-First run downloads the default model (`small.en`, ~466 MB) to the cache dir.
 
 | Model | Size | Notes |
 |---|---|---|
