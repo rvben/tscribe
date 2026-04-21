@@ -33,10 +33,10 @@ impl Reporter {
     }
 
     pub fn spinner(&self, message: &'static str) -> Option<ProgressBar> {
+        // Non-TTY callers get a single terminal line per step, emitted by
+        // `finish` or `fail`. That keeps logs clean and makes success/failure
+        // unambiguous in CI output.
         if self.verbosity == Verbosity::Quiet || !self.is_tty {
-            if self.verbosity == Verbosity::Normal {
-                eprintln!("{message}");
-            }
             return None;
         }
         let pb = ProgressBar::new_spinner();
@@ -72,6 +72,16 @@ impl Reporter {
     pub fn finish(&self, pb: Option<ProgressBar>, message: String) {
         if let Some(pb) = pb {
             pb.finish_with_message(message);
+        } else if self.verbosity != Verbosity::Quiet {
+            eprintln!("{message}");
+        }
+    }
+
+    /// Replace a live spinner with a failure marker, or emit the line in
+    /// non-TTY mode. Callers should prefix the message with `✗ `.
+    pub fn fail(&self, pb: Option<ProgressBar>, message: String) {
+        if let Some(pb) = pb {
+            pb.abandon_with_message(message);
         } else if self.verbosity != Verbosity::Quiet {
             eprintln!("{message}");
         }

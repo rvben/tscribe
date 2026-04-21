@@ -78,16 +78,40 @@ pub async fn run(
     let workdir = tempfile::Builder::new().prefix("tscribe-").tempdir()?;
 
     let probe_pb = reporter.spinner("Checking media...");
-    let probed = download::probe(&opts.url).await?;
-    reporter.finish(probe_pb, format!("✓ Media: {}", probed.summary()));
+    let probed = match download::probe(&opts.url).await {
+        Ok(p) => {
+            reporter.finish(probe_pb, format!("✓ Media: {}", p.summary()));
+            p
+        }
+        Err(e) => {
+            reporter.fail(probe_pb, "✗ Checking media...".to_string());
+            return Err(e);
+        }
+    };
 
     let dl_pb = reporter.spinner("Downloading audio...");
-    let audio_path = download::fetch(&opts.url, workdir.path()).await?;
-    reporter.finish(dl_pb, "✓ Audio downloaded".to_string());
+    let audio_path = match download::fetch(&opts.url, workdir.path()).await {
+        Ok(p) => {
+            reporter.finish(dl_pb, "✓ Audio downloaded".to_string());
+            p
+        }
+        Err(e) => {
+            reporter.fail(dl_pb, "✗ Downloading audio...".to_string());
+            return Err(e);
+        }
+    };
 
     let conv_pb = reporter.spinner("Converting audio...");
-    let wav = audio::convert_to_wav(&audio_path, workdir.path()).await?;
-    reporter.finish(conv_pb, "✓ Audio converted".to_string());
+    let wav = match audio::convert_to_wav(&audio_path, workdir.path()).await {
+        Ok(w) => {
+            reporter.finish(conv_pb, "✓ Audio converted".to_string());
+            w
+        }
+        Err(e) => {
+            reporter.fail(conv_pb, "✗ Converting audio...".to_string());
+            return Err(e);
+        }
+    };
 
     let samples = audio::read_wav_samples(&wav)?;
 
@@ -108,8 +132,17 @@ pub async fn run(
         }
     })
     .await
-    .map_err(|e| crate::error::Error::Transcribe(format!("join error: {e}")))??;
-    reporter.finish(tx_pb, format!("✓ Transcribed {} segments", segments.len()));
+    .map_err(|e| crate::error::Error::Transcribe(format!("join error: {e}")));
+    let segments = match segments.and_then(|r| r) {
+        Ok(s) => {
+            reporter.finish(tx_pb, format!("✓ Transcribed {} segments", s.len()));
+            s
+        }
+        Err(e) => {
+            reporter.fail(tx_pb, "✗ Transcribing...".to_string());
+            return Err(e);
+        }
+    };
 
     let entry = build_entry(
         opts.url.clone(),
