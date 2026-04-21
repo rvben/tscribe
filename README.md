@@ -1,5 +1,9 @@
 # tscribe
 
+[![crates.io](https://img.shields.io/crates/v/tscribe.svg)](https://crates.io/crates/tscribe)
+[![CI](https://github.com/rvben/tscribe/actions/workflows/ci.yml/badge.svg)](https://github.com/rvben/tscribe/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 > Transcribe any video/audio URL into agent-friendly markdown.
 
 `tscribe` shells out to [yt-dlp](https://github.com/yt-dlp/yt-dlp) for
