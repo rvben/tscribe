@@ -9,6 +9,7 @@ use tscribe::config::Paths;
 use tscribe::deps::{self, FFMPEG, YT_DLP};
 use tscribe::error::Error;
 use tscribe::format::{self, RenderOptions};
+use tscribe::logging;
 use tscribe::model;
 use tscribe::pipeline::{self, PipelineOptions};
 use tscribe::progress::{Reporter, Verbosity};
@@ -48,6 +49,7 @@ fn main() -> ExitCode {
 fn run_transcribe(url: String, cli: Cli, paths: &Paths) -> Result<(), Error> {
     let args = cli.transcribe;
     let verbosity = Verbosity::from_flags(args.quiet, args.verbose);
+    logging::init(args.verbose);
     let reporter = Reporter::new(verbosity);
 
     let threads = args

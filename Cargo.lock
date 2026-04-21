@@ -2013,6 +2013,7 @@ dependencies = [
  "hex",
  "hound",
  "indicatif",
+ "log",
  "predicates",
  "reqwest",
  "serde",

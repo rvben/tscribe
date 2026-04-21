@@ -8,6 +8,7 @@ pub mod deps;
 pub mod download;
 pub mod error;
 pub mod format;
+pub mod logging;
 pub mod model;
 pub mod pipeline;
 pub mod progress;
