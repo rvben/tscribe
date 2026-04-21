@@ -115,7 +115,7 @@ pub async fn fetch(url: &str, workdir: &Path) -> Result<PathBuf> {
         .map_err(|e| Error::Download(format!("wait yt-dlp: {e}")))?;
 
     if !output.status.success() {
-        return Err(Error::Download(stderr_tail(&output.stderr)));
+        return Err(classify_yt_dlp_error(&output.stderr));
     }
 
     let audio_path = workdir.join("audio.mp3");
@@ -142,15 +142,52 @@ async fn run_yt_dlp_json(bin: &Path, url: &str) -> Result<YtDlpJson> {
         .map_err(|e| Error::Download(format!("wait yt-dlp: {e}")))?;
 
     if !output.status.success() {
-        return Err(Error::Download(stderr_tail(&output.stderr)));
+        return Err(classify_yt_dlp_error(&output.stderr));
     }
 
     serde_json::from_slice(&output.stdout)
         .map_err(|e| Error::Download(format!("parse yt-dlp json: {e}")))
 }
 
-fn stderr_tail(stderr: &[u8]) -> String {
-    let s = String::from_utf8_lossy(stderr);
+/// Convert a failed yt-dlp run into the most accurate error variant.
+///
+/// yt-dlp's stderr reliably contains an `ERROR: ...` line for real failures,
+/// often preceded by `WARNING:` noise from its extractor fallback chain. Pick
+/// the last ERROR line, strip its `[extractor]` tag, and classify:
+///
+/// * `Unsupported URL` / `is not a valid URL` → [`Error::Unsupported`] (exit 2)
+/// * anything else → [`Error::Download`] (exit 3)
+fn classify_yt_dlp_error(stderr: &[u8]) -> Error {
+    let text = String::from_utf8_lossy(stderr);
+    let message = text
+        .lines()
+        .filter(|l| l.contains("ERROR:"))
+        .next_back()
+        .map(clean_yt_dlp_error_line)
+        .unwrap_or_else(|| stderr_tail(&text));
+
+    if message.contains("Unsupported URL") || message.contains("is not a valid URL") {
+        Error::Unsupported(message)
+    } else {
+        Error::Download(message)
+    }
+}
+
+fn clean_yt_dlp_error_line(line: &str) -> String {
+    let after = line
+        .split_once("ERROR:")
+        .map_or(line, |(_, rest)| rest)
+        .trim();
+    // yt-dlp prefixes messages with "[extractor]" — drop it for clarity.
+    if let Some(rest) = after.strip_prefix('[')
+        && let Some(close) = rest.find(']')
+    {
+        return rest[close + 1..].trim().to_string();
+    }
+    after.to_string()
+}
+
+fn stderr_tail(s: &str) -> String {
     let lines: Vec<&str> = s.lines().collect();
     lines[lines.len().saturating_sub(10)..].join("\n")
 }
@@ -275,6 +312,54 @@ mod tests {
             uploaded_at: None,
         };
         assert_eq!(p.summary(), "\"Hello world\" — @dimillian (2m05s)");
+    }
+
+    #[test]
+    fn classifies_unsupported_url() {
+        let stderr = b"WARNING: [generic] Falling back on generic information extractor\n\
+                       ERROR: Unsupported URL: https://example.com/foo\n";
+        match classify_yt_dlp_error(stderr) {
+            Error::Unsupported(msg) => assert_eq!(msg, "Unsupported URL: https://example.com/foo"),
+            other => panic!("expected Unsupported, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classifies_invalid_url() {
+        let stderr = b"ERROR: [generic] 'not a url' is not a valid URL\n";
+        match classify_yt_dlp_error(stderr) {
+            Error::Unsupported(msg) => assert_eq!(msg, "'not a url' is not a valid URL"),
+            other => panic!("expected Unsupported, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classifies_download_failure() {
+        let stderr = b"ERROR: [generic] Unable to download webpage: HTTP Error 404: Not Found\n";
+        match classify_yt_dlp_error(stderr) {
+            Error::Download(msg) => {
+                assert_eq!(msg, "Unable to download webpage: HTTP Error 404: Not Found");
+            }
+            other => panic!("expected Download, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classifier_prefers_last_error_line() {
+        let stderr = b"ERROR: [a] first\nWARNING: ignore me\nERROR: [b] Unsupported URL: x\n";
+        match classify_yt_dlp_error(stderr) {
+            Error::Unsupported(msg) => assert_eq!(msg, "Unsupported URL: x"),
+            other => panic!("expected Unsupported, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classifier_falls_back_on_no_error_line() {
+        let stderr = b"WARNING: something odd happened\nno ERROR lines here\n";
+        match classify_yt_dlp_error(stderr) {
+            Error::Download(msg) => assert!(msg.contains("no ERROR lines here")),
+            other => panic!("expected Download, got {other:?}"),
+        }
     }
 
     #[test]
