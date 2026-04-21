@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.2.0](https://github.com/rvben/tscribe/compare/v0.1.2...v0.2.0) - 2026-04-21
+
+### Added
+
+- **cache**: add header and align columns in cache list ([344a248](https://github.com/rvben/tscribe/commit/344a248f3ad623f084a6b32969047ba33416de2f))
+- **cli**: show cache hit indicator with media summary ([337691f](https://github.com/rvben/tscribe/commit/337691f86d68b659b6e7c6ec4499883be4523ce5))
+- **cli**: mark failed pipeline steps with explicit markers ([21ce901](https://github.com/rvben/tscribe/commit/21ce90106315c6423a594e34dd9ae58931fca1b9))
+- **download**: reject silent media with pre-flight probe ([2794334](https://github.com/rvben/tscribe/commit/2794334977477d865e703daea490ce92a100c724))
+
+### Fixed
+
+- **format**: double-quote every string in YAML frontmatter ([eb72776](https://github.com/rvben/tscribe/commit/eb727761f7a38f713d74c8d72a73975823786d47))
+- **cli**: exit 2 with model list when -m is unknown ([4734432](https://github.com/rvben/tscribe/commit/4734432299ca0b04436115b59603b49f46de98c8))
+- **model**: distinguish missing model from failed download ([fca5eb0](https://github.com/rvben/tscribe/commit/fca5eb03f6e25103c45ff4c0e763abc163d7ed6e))
+- **pipeline**: probe URL before fetching model ([5180fec](https://github.com/rvben/tscribe/commit/5180fec6811501245d8b7299e2e2eef5ab3087b8))
+- **download**: classify yt-dlp URL errors as unsupported (exit 2) ([2c99be9](https://github.com/rvben/tscribe/commit/2c99be9f491c81c9664783e8daa8bf76b50cb38f))
+- **cli**: silence whisper.cpp native log spam, honor -q and -v ([6f68819](https://github.com/rvben/tscribe/commit/6f688193a5aa991cef83664568a0c3aadd4aa60a))
+
 ## [0.1.2](https://github.com/rvben/tscribe/compare/v0.1.1...v0.1.2) - 2026-04-21
 
 ### Docs
