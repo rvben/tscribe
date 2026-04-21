@@ -14,16 +14,85 @@ struct YtDlpJson {
     upload_date: Option<String>, // YYYYMMDD
     webpage_url: Option<String>,
     channel: Option<String>,
+    acodec: Option<String>,
+    #[serde(default)]
+    formats: Vec<YtDlpFormat>,
 }
 
-pub struct DownloadResult {
-    pub audio_path: PathBuf,
-    pub metadata: Metadata,
+#[derive(Debug, Deserialize)]
+struct YtDlpFormat {
+    acodec: Option<String>,
 }
 
-/// Download audio via yt-dlp into the given workdir, returning the audio path
-/// and parsed metadata.
-pub async fn download(url: &str, workdir: &Path) -> Result<DownloadResult> {
+/// Metadata extracted by [`probe`], used both to drive progress output and to
+/// build the final transcript record.
+#[derive(Debug, Clone)]
+pub struct Probed {
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub duration_seconds: Option<u64>,
+    pub site: Option<String>,
+    pub uploaded_at: Option<DateTime<Utc>>,
+}
+
+impl Probed {
+    /// One-line summary for progress output (e.g. `"Foo" — @bar (3m20s)`).
+    pub fn summary(&self) -> String {
+        let title = self
+            .title
+            .as_deref()
+            .map(|t| format!("\"{t}\""))
+            .unwrap_or_else(|| "(untitled)".to_string());
+        let mut out = title;
+        if let Some(author) = &self.author {
+            out.push_str(" — ");
+            out.push_str(author);
+        }
+        if let Some(secs) = self.duration_seconds {
+            out.push_str(&format!(" ({})", format_duration(secs)));
+        }
+        out
+    }
+
+    pub fn into_metadata(self) -> Metadata {
+        Metadata {
+            title: self.title,
+            author: self.author,
+            site: self.site,
+            duration_seconds: self.duration_seconds,
+            uploaded_at: self.uploaded_at,
+        }
+    }
+}
+
+/// Extract metadata via `yt-dlp -J` and verify the media has an audio track.
+///
+/// This gives a fast, cheap gate before we spend time downloading video-only
+/// content (e.g. silent X clips). Returns [`Error::Unsupported`] when there's
+/// nothing to transcribe.
+pub async fn probe(url: &str) -> Result<Probed> {
+    let bin = deps::require(&YT_DLP)?;
+    let info = run_yt_dlp_json(&bin, url).await?;
+
+    if !has_audio(&info) {
+        return Err(Error::Unsupported(
+            "media has no audio track — nothing to transcribe".to_string(),
+        ));
+    }
+
+    let site = site_from_url(info.webpage_url.as_deref().unwrap_or(url));
+    Ok(Probed {
+        title: info.title,
+        author: info.uploader.or(info.channel),
+        duration_seconds: info.duration.map(|d| d as u64),
+        site,
+        uploaded_at: parse_upload_date(info.upload_date.as_deref()),
+    })
+}
+
+/// Download the best audio stream to `workdir/audio.mp3`. Expects [`probe`] to
+/// have already validated the URL.
+pub async fn fetch(url: &str, workdir: &Path) -> Result<PathBuf> {
     let bin = deps::require(&YT_DLP)?;
     let template = workdir.join("audio.%(ext)s");
 
@@ -34,7 +103,6 @@ pub async fn download(url: &str, workdir: &Path) -> Result<DownloadResult> {
         .arg("--extract-audio")
         .arg("--audio-format")
         .arg("mp3")
-        .arg("--print-json")
         .arg("-o")
         .arg(&template)
         .arg(url)
@@ -47,21 +115,8 @@ pub async fn download(url: &str, workdir: &Path) -> Result<DownloadResult> {
         .map_err(|e| Error::Download(format!("wait yt-dlp: {e}")))?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let lines: Vec<&str> = stderr.lines().collect();
-        let tail = lines[lines.len().saturating_sub(10)..].join("\n");
-        return Err(Error::Download(tail));
+        return Err(Error::Download(stderr_tail(&output.stderr)));
     }
-
-    // The last line of stdout is the JSON blob (--print-json).
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let json_line = stdout
-        .lines()
-        .rev()
-        .find(|l| l.trim_start().starts_with('{'))
-        .ok_or_else(|| Error::Download("yt-dlp produced no JSON metadata".to_string()))?;
-    let info: YtDlpJson = serde_json::from_str(json_line)
-        .map_err(|e| Error::Download(format!("parse yt-dlp json: {e}")))?;
 
     let audio_path = workdir.join("audio.mp3");
     if !audio_path.exists() {
@@ -70,19 +125,44 @@ pub async fn download(url: &str, workdir: &Path) -> Result<DownloadResult> {
             audio_path.display()
         )));
     }
+    Ok(audio_path)
+}
 
-    let metadata = Metadata {
-        title: info.title,
-        author: info.uploader.or(info.channel),
-        site: site_from_url(&info.webpage_url.unwrap_or_else(|| url.to_string())),
-        duration_seconds: info.duration.map(|d| d as u64),
-        uploaded_at: parse_upload_date(info.upload_date.as_deref()),
-    };
+async fn run_yt_dlp_json(bin: &Path, url: &str) -> Result<YtDlpJson> {
+    let output = Command::new(bin)
+        .arg("-J")
+        .arg("--no-playlist")
+        .arg(url)
+        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| Error::Download(format!("spawn yt-dlp: {e}")))?
+        .wait_with_output()
+        .await
+        .map_err(|e| Error::Download(format!("wait yt-dlp: {e}")))?;
 
-    Ok(DownloadResult {
-        audio_path,
-        metadata,
-    })
+    if !output.status.success() {
+        return Err(Error::Download(stderr_tail(&output.stderr)));
+    }
+
+    serde_json::from_slice(&output.stdout)
+        .map_err(|e| Error::Download(format!("parse yt-dlp json: {e}")))
+}
+
+fn stderr_tail(stderr: &[u8]) -> String {
+    let s = String::from_utf8_lossy(stderr);
+    let lines: Vec<&str> = s.lines().collect();
+    lines[lines.len().saturating_sub(10)..].join("\n")
+}
+
+fn has_audio(info: &YtDlpJson) -> bool {
+    // yt-dlp marks video-only formats with acodec == "none" and leaves the
+    // field null when it doesn't know. Any real codec name — top-level or in
+    // any single format — proves audio is present.
+    fn is_real(codec: Option<&str>) -> bool {
+        matches!(codec, Some(c) if !c.is_empty() && c != "none")
+    }
+    is_real(info.acodec.as_deref()) || info.formats.iter().any(|f| is_real(f.acodec.as_deref()))
 }
 
 fn site_from_url(url: &str) -> Option<String> {
@@ -102,6 +182,16 @@ fn parse_upload_date(s: Option<&str>) -> Option<DateTime<Utc>> {
     let d: u32 = s[6..8].parse().ok()?;
     let date = NaiveDate::from_ymd_opt(y, m, d)?;
     Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0)?))
+}
+
+fn format_duration(secs: u64) -> String {
+    let m = secs / 60;
+    let s = secs % 60;
+    if m > 0 {
+        format!("{m}m{s:02}s")
+    } else {
+        format!("{s}s")
+    }
 }
 
 #[cfg(test)]
@@ -131,5 +221,71 @@ mod tests {
             Some("x.com".into())
         );
         assert_eq!(site_from_url("not a url"), None);
+    }
+
+    fn info(acodec: Option<&str>, formats: &[Option<&str>]) -> YtDlpJson {
+        YtDlpJson {
+            title: None,
+            uploader: None,
+            duration: None,
+            upload_date: None,
+            webpage_url: None,
+            channel: None,
+            acodec: acodec.map(str::to_owned),
+            formats: formats
+                .iter()
+                .map(|c| YtDlpFormat {
+                    acodec: c.map(str::to_owned),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn detects_missing_audio_track() {
+        let silent = info(None, &[Some("none"), None, Some("none"), None]);
+        assert!(!has_audio(&silent));
+    }
+
+    #[test]
+    fn detects_audio_from_any_format() {
+        let yt = info(Some("opus"), &[Some("none"), Some("mp4a.40.5")]);
+        assert!(has_audio(&yt));
+    }
+
+    #[test]
+    fn format_level_audio_is_enough() {
+        let combined = info(None, &[Some("none"), Some("mp4a.40.2")]);
+        assert!(has_audio(&combined));
+    }
+
+    #[test]
+    fn empty_acodec_is_not_audio() {
+        let empty = info(Some(""), &[Some("")]);
+        assert!(!has_audio(&empty));
+    }
+
+    #[test]
+    fn summary_renders_all_parts() {
+        let p = Probed {
+            title: Some("Hello world".into()),
+            author: Some("@dimillian".into()),
+            duration_seconds: Some(125),
+            site: Some("x.com".into()),
+            uploaded_at: None,
+        };
+        assert_eq!(p.summary(), "\"Hello world\" — @dimillian (2m05s)");
+    }
+
+    #[test]
+    fn summary_handles_missing_parts() {
+        let p = Probed {
+            title: None,
+            author: None,
+            duration_seconds: Some(45),
+            site: None,
+            uploaded_at: None,
+        };
+        assert_eq!(p.summary(), "(untitled) (45s)");
     }
 }

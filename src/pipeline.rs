@@ -77,12 +77,16 @@ pub async fn run(
 
     let workdir = tempfile::Builder::new().prefix("tscribe-").tempdir()?;
 
+    let probe_pb = reporter.spinner("Checking media...");
+    let probed = download::probe(&opts.url).await?;
+    reporter.finish(probe_pb, format!("✓ Media: {}", probed.summary()));
+
     let dl_pb = reporter.spinner("Downloading audio...");
-    let dl = download::download(&opts.url, workdir.path()).await?;
+    let audio_path = download::fetch(&opts.url, workdir.path()).await?;
     reporter.finish(dl_pb, "✓ Audio downloaded".to_string());
 
     let conv_pb = reporter.spinner("Converting audio...");
-    let wav = audio::convert_to_wav(&dl.audio_path, workdir.path()).await?;
+    let wav = audio::convert_to_wav(&audio_path, workdir.path()).await?;
     reporter.finish(conv_pb, "✓ Audio converted".to_string());
 
     let samples = audio::read_wav_samples(&wav)?;
@@ -109,7 +113,7 @@ pub async fn run(
 
     let entry = build_entry(
         opts.url.clone(),
-        dl.metadata,
+        probed.into_metadata(),
         model_name,
         opts.language,
         segments,

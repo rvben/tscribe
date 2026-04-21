@@ -11,6 +11,9 @@ pub enum Error {
     #[error("yt-dlp failed: {0}")]
     Download(String),
 
+    #[error("{0}")]
+    Unsupported(String),
+
     #[error("ffmpeg failed: {0}")]
     Audio(String),
 
@@ -34,7 +37,7 @@ impl Error {
     /// Map this error to the documented exit code.
     pub fn exit_code(&self) -> i32 {
         match self {
-            Error::BadUrl(_) => 2,
+            Error::BadUrl(_) | Error::Unsupported(_) => 2,
             Error::Download(_) => 3,
             Error::Transcribe(_) => 4,
             Error::MissingDep { .. } => 5,
@@ -64,6 +67,14 @@ mod tests {
             5
         );
         assert_eq!(Error::ModelDownload("x".into()).exit_code(), 6);
+        assert_eq!(Error::Unsupported("x".into()).exit_code(), 2);
         assert_eq!(Error::Other("x".into()).exit_code(), 1);
+    }
+
+    #[test]
+    fn unsupported_has_no_prefix() {
+        // Must not masquerade as a yt-dlp failure.
+        let msg = format!("{}", Error::Unsupported("no audio".into()));
+        assert_eq!(msg, "no audio");
     }
 }
