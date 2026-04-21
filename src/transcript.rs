@@ -50,6 +50,32 @@ impl TranscriptEntry {
     }
 }
 
+impl Metadata {
+    /// One-line summary matching the format used during probing:
+    /// `"Title" — Author (3m20s)`. Any missing part is omitted.
+    pub fn summary(&self) -> String {
+        let mut out = self
+            .title
+            .as_deref()
+            .map(|t| format!("\"{t}\""))
+            .unwrap_or_else(|| "(untitled)".to_string());
+        if let Some(author) = &self.author {
+            out.push_str(" — ");
+            out.push_str(author);
+        }
+        if let Some(secs) = self.duration_seconds {
+            let m = secs / 60;
+            let s = secs % 60;
+            if m > 0 {
+                out.push_str(&format!(" ({m}m{s:02}s)"));
+            } else {
+                out.push_str(&format!(" ({s}s)"));
+            }
+        }
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

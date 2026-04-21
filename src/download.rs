@@ -38,20 +38,15 @@ pub struct Probed {
 impl Probed {
     /// One-line summary for progress output (e.g. `"Foo" — @bar (3m20s)`).
     pub fn summary(&self) -> String {
-        let title = self
-            .title
-            .as_deref()
-            .map(|t| format!("\"{t}\""))
-            .unwrap_or_else(|| "(untitled)".to_string());
-        let mut out = title;
-        if let Some(author) = &self.author {
-            out.push_str(" — ");
-            out.push_str(author);
+        // Reuse Metadata's formatter so live and cached output stay aligned.
+        Metadata {
+            title: self.title.clone(),
+            author: self.author.clone(),
+            site: self.site.clone(),
+            duration_seconds: self.duration_seconds,
+            uploaded_at: self.uploaded_at,
         }
-        if let Some(secs) = self.duration_seconds {
-            out.push_str(&format!(" ({})", format_duration(secs)));
-        }
-        out
+        .summary()
     }
 
     pub fn into_metadata(self) -> Metadata {
@@ -219,16 +214,6 @@ fn parse_upload_date(s: Option<&str>) -> Option<DateTime<Utc>> {
     let d: u32 = s[6..8].parse().ok()?;
     let date = NaiveDate::from_ymd_opt(y, m, d)?;
     Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0)?))
-}
-
-fn format_duration(secs: u64) -> String {
-    let m = secs / 60;
-    let s = secs % 60;
-    if m > 0 {
-        format!("{m}m{s:02}s")
-    } else {
-        format!("{s}s")
-    }
 }
 
 #[cfg(test)]

@@ -42,6 +42,7 @@ pub async fn run(
         && !opts.refresh
         && let Some(entry) = cache.get(&key)?
     {
+        reporter.finish(None, format!("⚡ Cache hit: {}", entry.metadata.summary()));
         return Ok(PipelineResult {
             entry,
             from_cache: true,
