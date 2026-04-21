@@ -49,7 +49,7 @@ pub async fn run(
     }
 
     let model = model::lookup(&model_name)
-        .ok_or_else(|| crate::error::Error::Other(format!("unknown model: {model_name}")))?;
+        .ok_or_else(|| crate::error::Error::BadArg(model::unknown_model_message(&model_name)))?;
 
     // Probe the URL first so a bad link fails before we spend time fetching a
     // multi-hundred-MB model.

@@ -143,7 +143,7 @@ fn run_models(action: ModelAction, paths: &Paths) -> Result<(), Error> {
         }
         ModelAction::Download { name } => {
             let m = model::lookup(&name)
-                .ok_or_else(|| Error::Other(format!("unknown model: {name}")))?;
+                .ok_or_else(|| Error::BadArg(model::unknown_model_message(&name)))?;
             let reporter = Reporter::new(Verbosity::Normal);
             let pb = reporter.download_bar(None);
             let pb_ref = pb.as_ref();

@@ -8,6 +8,9 @@ pub enum Error {
     #[error("unsupported or invalid URL: {0}")]
     BadUrl(String),
 
+    #[error("{0}")]
+    BadArg(String),
+
     #[error("yt-dlp failed: {0}")]
     Download(String),
 
@@ -40,7 +43,7 @@ impl Error {
     /// Map this error to the documented exit code.
     pub fn exit_code(&self) -> i32 {
         match self {
-            Error::BadUrl(_) | Error::Unsupported(_) => 2,
+            Error::BadUrl(_) | Error::BadArg(_) | Error::Unsupported(_) => 2,
             Error::Download(_) => 3,
             Error::Transcribe(_) => 4,
             Error::MissingDep { .. } => 5,
@@ -95,5 +98,10 @@ mod tests {
     #[test]
     fn model_missing_exits_6() {
         assert_eq!(Error::ModelMissing("x".into()).exit_code(), 6);
+    }
+
+    #[test]
+    fn bad_arg_exits_2() {
+        assert_eq!(Error::BadArg("x".into()).exit_code(), 2);
     }
 }

@@ -62,6 +62,17 @@ pub fn lookup(name: &str) -> Option<&'static Model> {
     REGISTRY.iter().find(|m| m.name == name)
 }
 
+/// Error message listing every model name, for when the user passes an
+/// unknown `-m`. Kept in one place so `run` and `models download` agree.
+pub fn unknown_model_message(name: &str) -> String {
+    let available = REGISTRY
+        .iter()
+        .map(|m| m.name)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("unknown model: {name} (available: {available})")
+}
+
 pub fn model_filename(name: &str) -> String {
     format!("ggml-{name}.bin")
 }
