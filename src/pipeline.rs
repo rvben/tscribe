@@ -51,6 +51,20 @@ pub async fn run(
     let model = model::lookup(&model_name)
         .ok_or_else(|| crate::error::Error::Other(format!("unknown model: {model_name}")))?;
 
+    // Probe the URL first so a bad link fails before we spend time fetching a
+    // multi-hundred-MB model.
+    let probe_pb = reporter.spinner("Checking media...");
+    let probed = match download::probe(&opts.url).await {
+        Ok(p) => {
+            reporter.finish(probe_pb, format!("✓ Media: {}", p.summary()));
+            p
+        }
+        Err(e) => {
+            reporter.fail(probe_pb, "✗ Checking media...".to_string());
+            return Err(e);
+        }
+    };
+
     let pb = reporter.download_bar(None);
     let model_path = if opts.allow_model_download {
         let pb_ref = pb.as_ref();
@@ -76,18 +90,6 @@ pub async fn run(
     reporter.finish(pb, format!("✓ Model ready: {}", model.name));
 
     let workdir = tempfile::Builder::new().prefix("tscribe-").tempdir()?;
-
-    let probe_pb = reporter.spinner("Checking media...");
-    let probed = match download::probe(&opts.url).await {
-        Ok(p) => {
-            reporter.finish(probe_pb, format!("✓ Media: {}", p.summary()));
-            p
-        }
-        Err(e) => {
-            reporter.fail(probe_pb, "✗ Checking media...".to_string());
-            return Err(e);
-        }
-    };
 
     let dl_pb = reporter.spinner("Downloading audio...");
     let audio_path = match download::fetch(&opts.url, workdir.path()).await {
