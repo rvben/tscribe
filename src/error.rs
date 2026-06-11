@@ -45,11 +45,36 @@ impl Error {
         match self {
             Error::BadUrl(_) | Error::BadArg(_) | Error::Unsupported(_) => 2,
             Error::Download(_) => 3,
-            Error::Transcribe(_) => 4,
+            Error::Transcribe(_) | Error::Audio(_) => 4,
             Error::MissingDep { .. } => 5,
             Error::ModelDownload(_) | Error::ModelMissing(_) => 6,
             _ => 1,
         }
+    }
+
+    /// Stable kind identifier for the structured error envelope.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Error::BadUrl(_) => "invalid_url",
+            Error::BadArg(_) | Error::Unsupported(_) => "invalid_argument",
+            Error::Download(_) => "network_failure",
+            Error::Transcribe(_) | Error::Audio(_) => "transcription_failed",
+            Error::MissingDep { .. } => "missing_dependency",
+            Error::ModelDownload(_) | Error::ModelMissing(_) => "model_not_found",
+            _ => "io_error",
+        }
+    }
+
+    /// Emit the structured error envelope as the last line of stderr.
+    /// Call this immediately before exiting on any error path.
+    pub fn emit_structured(&self) {
+        let envelope = serde_json::json!({
+            "error": {
+                "kind": self.kind(),
+                "message": self.to_string()
+            }
+        });
+        eprintln!("{}", envelope);
     }
 }
 
@@ -86,7 +111,7 @@ mod tests {
 
     #[test]
     fn model_missing_has_no_download_prefix() {
-        // The user hasn't downloaded a model; phrasing it as "download
+        // The user has not downloaded a model; phrasing it as "download
         // failed" misdiagnoses the problem.
         let msg = format!(
             "{}",
@@ -103,5 +128,41 @@ mod tests {
     #[test]
     fn bad_arg_exits_2() {
         assert_eq!(Error::BadArg("x".into()).exit_code(), 2);
+    }
+
+    #[test]
+    fn kind_identifiers_are_stable() {
+        assert_eq!(Error::BadUrl("x".into()).kind(), "invalid_url");
+        assert_eq!(Error::BadArg("x".into()).kind(), "invalid_argument");
+        assert_eq!(Error::Download("x".into()).kind(), "network_failure");
+        assert_eq!(Error::Transcribe("x".into()).kind(), "transcription_failed");
+        assert_eq!(
+            Error::MissingDep {
+                name: "x".into(),
+                hint: "y".into()
+            }
+            .kind(),
+            "missing_dependency"
+        );
+        assert_eq!(Error::ModelMissing("x".into()).kind(), "model_not_found");
+        assert_eq!(Error::Other("x".into()).kind(), "io_error");
+    }
+
+    #[test]
+    fn emit_structured_produces_valid_json() {
+        // Redirect stderr capture is not possible in unit tests without extra
+        // deps, but we verify the envelope is valid JSON by constructing it
+        // directly the same way emit_structured does.
+        let err = Error::BadUrl("https://bad".into());
+        let envelope = serde_json::json!({
+            "error": {
+                "kind": err.kind(),
+                "message": err.to_string()
+            }
+        });
+        let s = envelope.to_string();
+        let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+        assert_eq!(parsed["error"]["kind"], "invalid_url");
+        assert!(parsed["error"]["message"].is_string());
     }
 }

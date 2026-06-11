@@ -12,5 +12,6 @@ pub mod logging;
 pub mod model;
 pub mod pipeline;
 pub mod progress;
+pub mod schema;
 pub mod transcribe;
 pub mod transcript;
