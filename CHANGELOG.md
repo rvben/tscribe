@@ -69,3 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **model**: replace placeholder SHA256s with real values ([8c5cfdf](https://github.com/rvben/tscribe/commit/8c5cfdffff9f4c2a93ec38e71eac9e52857990a9))
 
 ## [Unreleased]
+
+## [0.2.1](https://github.com/rvben/tscribe/compare/v0.2.0...v0.2.1) - 2026-06-11
+
+### Added
+
+- **schema**: add clispec v0.2 compliance ([314f889](https://github.com/rvben/tscribe/commit/314f8890a1ac9a0fd0fd174bd99a38d1bb9361ad))
