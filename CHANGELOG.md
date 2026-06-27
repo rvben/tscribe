@@ -70,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/rvben/tscribe/compare/v0.2.1...v0.2.2) - 2026-06-27
+
+### Fixed
+
+- **download**: detect audio-only HLS streams without a named codec ([59fe049](https://github.com/rvben/tscribe/commit/59fe049e0dbf13b52098ed560230f86af2e820cc))
+
+
+
 ## [0.2.1](https://github.com/rvben/tscribe/compare/v0.2.0...v0.2.1) - 2026-06-11
 
 ### Added
