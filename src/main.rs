@@ -134,7 +134,10 @@ fn run_cache(
             limit,
             offset,
             fields,
+            format,
         } => {
+            // A per-command --format overrides the global --output-mode.
+            let output_mode = format.map(|m| m.resolve()).unwrap_or(output_mode);
             let all_rows = cache.list()?;
             let total = all_rows.len();
             let rows: Vec<_> = all_rows.into_iter().skip(offset).take(limit).collect();
@@ -214,7 +217,9 @@ fn run_models(
     output_mode: ResolvedOutputMode,
 ) -> Result<(), Error> {
     match action {
-        ModelAction::List => {
+        ModelAction::List { format } => {
+            // A per-command --format overrides the global --output-mode.
+            let output_mode = format.map(|m| m.resolve()).unwrap_or(output_mode);
             if output_mode == ResolvedOutputMode::Json {
                 let items: Vec<serde_json::Value> = model::REGISTRY
                     .iter()

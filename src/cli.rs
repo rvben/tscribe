@@ -184,6 +184,9 @@ pub enum CacheAction {
         /// Comma-separated fields to include (key,url,model,language,date,title).
         #[arg(long)]
         fields: Option<String>,
+        /// Output format for this command (auto/text/json). Overrides --output-mode.
+        #[arg(long, value_name = "FORMAT")]
+        format: Option<OutputMode>,
     },
     /// Remove all cached transcripts.
     Clear,
@@ -194,7 +197,11 @@ pub enum CacheAction {
 #[derive(Subcommand, Debug)]
 pub enum ModelAction {
     /// List downloaded models with sizes.
-    List,
+    List {
+        /// Output format for this command (auto/text/json). Overrides --output-mode.
+        #[arg(long, value_name = "FORMAT")]
+        format: Option<OutputMode>,
+    },
     /// Pre-download a specific model.
     Download { name: String },
     /// Remove all downloaded models.
@@ -322,6 +329,28 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn cache_list_parses_format_override() {
+        let cli = Cli::try_parse_from(["tscribe", "cache", "list", "--format", "text"]).unwrap();
+        match cli.command {
+            Some(Command::Cache {
+                action: CacheAction::List { format, .. },
+            }) => assert_eq!(format, Some(OutputMode::Text)),
+            _ => panic!("expected cache list"),
+        }
+    }
+
+    #[test]
+    fn models_list_parses_format_override() {
+        let cli = Cli::try_parse_from(["tscribe", "models", "list", "--format", "json"]).unwrap();
+        match cli.command {
+            Some(Command::Models {
+                action: ModelAction::List { format },
+            }) => assert_eq!(format, Some(OutputMode::Json)),
+            _ => panic!("expected models list"),
+        }
     }
 
     #[test]
