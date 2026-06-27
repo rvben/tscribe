@@ -22,6 +22,7 @@ struct YtDlpJson {
 #[derive(Debug, Deserialize)]
 struct YtDlpFormat {
     acodec: Option<String>,
+    vcodec: Option<String>,
 }
 
 /// Metadata extracted by [`probe`], used both to drive progress output and to
@@ -188,12 +189,22 @@ fn stderr_tail(s: &str) -> String {
 
 fn has_audio(info: &YtDlpJson) -> bool {
     // yt-dlp marks video-only formats with acodec == "none" and leaves the
-    // field null when it doesn't know. Any real codec name — top-level or in
-    // any single format — proves audio is present.
+    // field null when it doesn't know. A real codec name — top-level or in any
+    // single format — proves audio is present.
     fn is_real(codec: Option<&str>) -> bool {
         matches!(codec, Some(c) if !c.is_empty() && c != "none")
     }
-    is_real(info.acodec.as_deref()) || info.formats.iter().any(|f| is_real(f.acodec.as_deref()))
+    // An audio-only format (vcodec == "none") carries audio by definition, even
+    // when yt-dlp can't name the codec — e.g. X/Twitter HLS audio streams whose
+    // acodec is null. bestaudio downloads these fine, so don't reject them.
+    fn is_audio_only(f: &YtDlpFormat) -> bool {
+        matches!(f.vcodec.as_deref(), Some("none")) && f.acodec.as_deref() != Some("none")
+    }
+    is_real(info.acodec.as_deref())
+        || info
+            .formats
+            .iter()
+            .any(|f| is_real(f.acodec.as_deref()) || is_audio_only(f))
 }
 
 fn site_from_url(url: &str) -> Option<String> {
@@ -244,7 +255,10 @@ mod tests {
         assert_eq!(site_from_url("not a url"), None);
     }
 
-    fn info(acodec: Option<&str>, formats: &[Option<&str>]) -> YtDlpJson {
+    /// Build a [`YtDlpJson`] from a top-level `acodec` plus a list of
+    /// `(acodec, vcodec)` pairs, one per format — mirroring the fields yt-dlp
+    /// emits per stream.
+    fn info(acodec: Option<&str>, formats: &[(Option<&str>, Option<&str>)]) -> YtDlpJson {
         YtDlpJson {
             title: None,
             uploader: None,
@@ -255,8 +269,9 @@ mod tests {
             acodec: acodec.map(str::to_owned),
             formats: formats
                 .iter()
-                .map(|c| YtDlpFormat {
-                    acodec: c.map(str::to_owned),
+                .map(|(a, v)| YtDlpFormat {
+                    acodec: a.map(str::to_owned),
+                    vcodec: v.map(str::to_owned),
                 })
                 .collect(),
         }
@@ -264,25 +279,63 @@ mod tests {
 
     #[test]
     fn detects_missing_audio_track() {
-        let silent = info(None, &[Some("none"), None, Some("none"), None]);
+        // A genuinely silent clip: only video-bearing formats (real vcodec,
+        // acodec "none"), no audio-only stream.
+        let silent = info(
+            None,
+            &[
+                (Some("none"), Some("avc1.4d401e")),
+                (None, None),
+                (Some("none"), Some("avc1.64001f")),
+            ],
+        );
         assert!(!has_audio(&silent));
     }
 
     #[test]
     fn detects_audio_from_any_format() {
-        let yt = info(Some("opus"), &[Some("none"), Some("mp4a.40.5")]);
+        let yt = info(
+            Some("opus"),
+            &[
+                (Some("none"), Some("vp9")),
+                (Some("mp4a.40.5"), Some("none")),
+            ],
+        );
         assert!(has_audio(&yt));
     }
 
     #[test]
     fn format_level_audio_is_enough() {
-        let combined = info(None, &[Some("none"), Some("mp4a.40.2")]);
+        let combined = info(
+            None,
+            &[
+                (Some("none"), Some("avc1")),
+                (Some("mp4a.40.2"), Some("none")),
+            ],
+        );
         assert!(has_audio(&combined));
     }
 
     #[test]
+    fn detects_audio_only_format_without_codec_name() {
+        // X/Twitter HLS audio-only streams: yt-dlp can't name the codec from
+        // the m3u8 manifest (acodec null) but marks them video-less
+        // (vcodec "none"). The audio is real and downloadable via bestaudio.
+        let twitter = info(
+            None,
+            &[
+                (None, Some("none")),                // hls-audio-128000-Audio
+                (None, None),                        // http-632 progressive (codecs unknown)
+                (Some("none"), Some("avc1.4d401e")), // hls-331 video-only
+                (Some("none"), Some("avc1.640032")), // hls-5038 video-only
+            ],
+        );
+        assert!(has_audio(&twitter));
+    }
+
+    #[test]
     fn empty_acodec_is_not_audio() {
-        let empty = info(Some(""), &[Some("")]);
+        let empty = info(Some(""), &[(Some(""), Some("avc1"))]);
         assert!(!has_audio(&empty));
     }
 
