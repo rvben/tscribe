@@ -55,6 +55,24 @@ pub struct ErrorKind {
     pub description: &'static str,
 }
 
+/// The per-command `--format` override shared by the metadata commands
+/// (doctor, cache list, models list). It overrides the global `--output-mode`
+/// for that command only.
+fn format_override_arg() -> Arg {
+    Arg {
+        name: "--format",
+        ty: "string",
+        required: false,
+        // No default: when omitted, this command inherits the global
+        // --output-mode, which is not the same as passing --format=auto.
+        default: None,
+        description: Some(
+            "Output format for this command (auto/text/json). Overrides --output-mode.",
+        ),
+        enum_values: Some(vec!["auto", "text", "json"]),
+    }
+}
+
 pub fn build() -> Schema {
     Schema {
         clispec: "0.2",
@@ -168,6 +186,7 @@ pub fn build() -> Schema {
                         ),
                         enum_values: None,
                     },
+                    format_override_arg(),
                 ],
                 output_fields: vec![
                     Field {
@@ -211,7 +230,7 @@ pub fn build() -> Schema {
                 output_fields: vec![],
                 subcommands: vec![
                     Command {
-                        name: "cache list",
+                        name: "list",
                         description: "List cached transcripts.",
                         mutating: false,
                         args: vec![
@@ -241,6 +260,7 @@ pub fn build() -> Schema {
                                 ),
                                 enum_values: None,
                             },
+                            format_override_arg(),
                         ],
                         output_fields: vec![
                             Field {
@@ -267,7 +287,7 @@ pub fn build() -> Schema {
                         subcommands: vec![],
                     },
                     Command {
-                        name: "cache clear",
+                        name: "clear",
                         description: "Remove all cached transcripts.",
                         mutating: true,
                         args: vec![],
@@ -275,7 +295,7 @@ pub fn build() -> Schema {
                         subcommands: vec![],
                     },
                     Command {
-                        name: "cache path",
+                        name: "path",
                         description: "Print the cache directory path.",
                         mutating: false,
                         args: vec![],
@@ -296,10 +316,10 @@ pub fn build() -> Schema {
                 output_fields: vec![],
                 subcommands: vec![
                     Command {
-                        name: "models list",
+                        name: "list",
                         description: "List available models and their installation status.",
                         mutating: false,
-                        args: vec![],
+                        args: vec![format_override_arg()],
                         output_fields: vec![
                             Field {
                                 name: "name",
@@ -327,7 +347,7 @@ pub fn build() -> Schema {
                         subcommands: vec![],
                     },
                     Command {
-                        name: "models download",
+                        name: "download",
                         description: "Pre-download a specific whisper model.",
                         mutating: true,
                         args: vec![Arg {
@@ -351,7 +371,7 @@ pub fn build() -> Schema {
                         subcommands: vec![],
                     },
                     Command {
-                        name: "models clear",
+                        name: "clear",
                         description: "Remove all downloaded whisper models.",
                         mutating: true,
                         args: vec![],
@@ -573,6 +593,30 @@ mod tests {
                 err.kind
             );
         }
+    }
+
+    #[test]
+    fn subcommand_names_are_leaf_tokens() {
+        // A consumer derives the full invocation by joining a parent command's
+        // name with each subcommand's name. So a subcommand `name` must be the
+        // leaf token only ("list"), never the already-joined path ("cache
+        // list") — otherwise the derived path duplicates the noun
+        // ("cache cache list"), which both misleads agents and breaks tooling
+        // that discovers a representative command from the schema.
+        fn check(commands: &[Command]) {
+            for cmd in commands {
+                for sub in &cmd.subcommands {
+                    assert!(
+                        !sub.name.contains(' '),
+                        "subcommand '{}' under '{}' must be a leaf token, not include the parent prefix",
+                        sub.name,
+                        cmd.name
+                    );
+                }
+                check(&cmd.subcommands);
+            }
+        }
+        check(&build().commands);
     }
 
     #[test]
