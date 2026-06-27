@@ -200,11 +200,29 @@ fn has_audio(info: &YtDlpJson) -> bool {
     fn is_audio_only(f: &YtDlpFormat) -> bool {
         matches!(f.vcodec.as_deref(), Some("none")) && f.acodec.as_deref() != Some("none")
     }
-    is_real(info.acodec.as_deref())
+    if is_real(info.acodec.as_deref())
         || info
             .formats
             .iter()
             .any(|f| is_real(f.acodec.as_deref()) || is_audio_only(f))
+    {
+        return true;
+    }
+    // No positive audio signal. Reject only with positive proof of silence: a
+    // non-empty format list where every stream explicitly has no audio codec
+    // (acodec "none" or empty). Unknown/null codecs get the benefit of the
+    // doubt — a wrongly rejected real video is a worse failure than
+    // transcribing a rare silent clip to empty output, and bestaudio/best still
+    // picks a real stream.
+    fn explicitly_no_audio(acodec: Option<&str>) -> bool {
+        matches!(acodec, Some(c) if c.is_empty() || c == "none")
+    }
+    let proof_of_silence = !info.formats.is_empty()
+        && info
+            .formats
+            .iter()
+            .all(|f| explicitly_no_audio(f.acodec.as_deref()));
+    !proof_of_silence
 }
 
 fn site_from_url(url: &str) -> Option<String> {
@@ -279,17 +297,51 @@ mod tests {
 
     #[test]
     fn detects_missing_audio_track() {
-        // A genuinely silent clip: only video-bearing formats (real vcodec,
-        // acodec "none"), no audio-only stream.
+        // Positive proof of silence: every stream is explicitly video-only
+        // (acodec "none"). This is the only shape we reject.
         let silent = info(
             None,
             &[
                 (Some("none"), Some("avc1.4d401e")),
-                (None, None),
                 (Some("none"), Some("avc1.64001f")),
             ],
         );
         assert!(!has_audio(&silent));
+    }
+
+    #[test]
+    fn unknown_codec_only_gets_benefit_of_the_doubt() {
+        // A lone muxed progressive stream yt-dlp can't describe (acodec null,
+        // vcodec null). There's no proof of silence, so proceed — wrongly
+        // rejecting real media is worse than transcribing a rare silent clip
+        // to empty output. (X/Twitter's http-* progressive formats look like
+        // this and do carry audio.)
+        let unknown = info(None, &[(None, None)]);
+        assert!(has_audio(&unknown));
+    }
+
+    #[test]
+    fn video_only_plus_unknown_proceeds() {
+        // An explicit video-only stream alongside an unknown muxed one: the
+        // unknown stream may carry audio, so this is not proof of silence.
+        let mixed = info(None, &[(Some("none"), Some("avc1")), (None, None)]);
+        assert!(has_audio(&mixed));
+    }
+
+    #[test]
+    fn no_formats_proceeds() {
+        // Nothing to contradict — let the download attempt decide.
+        let bare = info(None, &[]);
+        assert!(has_audio(&bare));
+    }
+
+    #[test]
+    fn top_level_none_without_formats_proceeds() {
+        // Proof of silence requires a non-empty format list. A bare top-level
+        // acodec "none" with no formats is too thin to reject on — give it the
+        // benefit of the doubt and let the download attempt decide.
+        let bare_none = info(Some("none"), &[]);
+        assert!(has_audio(&bare_none));
     }
 
     #[test]
