@@ -70,6 +70,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/rvben/tscribe/compare/v0.2.2...v0.2.3) - 2026-06-27
+
+### Added
+
+- **cli**: add --format override to cache list and models list ([78c7b49](https://github.com/rvben/tscribe/commit/78c7b49a241626160c02ac4ecc020e39d6c42440))
+
+### Fixed
+
+- **schema**: use leaf-only names for nested subcommands ([892d9c9](https://github.com/rvben/tscribe/commit/892d9c9605889963bac9de321e5519f7b38e099a))
+- **download**: only reject media with positive proof of silence ([d3cf4da](https://github.com/rvben/tscribe/commit/d3cf4da04e495555b5f481b163126115d1fbf3f0))
+
+
+
 ## [0.2.2](https://github.com/rvben/tscribe/compare/v0.2.1...v0.2.2) - 2026-06-27
 
 ### Fixed
