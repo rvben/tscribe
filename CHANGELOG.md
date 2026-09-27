@@ -70,6 +70,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/rvben/tscribe/compare/v0.2.3...v0.2.4) - 2026-09-27
+
+### Fixed
+
+- **deps**: update rustls to 0.23.45 for RUSTSEC-2026-0285 ([b3766c5](https://github.com/rvben/tscribe/commit/b3766c511e79cf94b1ad3757109c5f854794ac34))
+
 ## [0.2.3](https://github.com/rvben/tscribe/compare/v0.2.2...v0.2.3) - 2026-06-27
 
 ### Added
