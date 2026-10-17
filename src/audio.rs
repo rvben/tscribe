@@ -21,6 +21,7 @@ pub async fn convert_to_wav(input: &Path, output_dir: &Path) -> Result<PathBuf> 
         .arg("-y")
         .arg(&output)
         .stdout(std::process::Stdio::null())
+        .kill_on_drop(true)
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| Error::Audio(format!("spawn ffmpeg: {e}")))?

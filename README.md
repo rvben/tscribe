@@ -11,6 +11,12 @@ scripts can branch on failure mode, and a content-addressed cache so retries
 cost nothing. Everything runs locally after the first model download — no API
 keys, no cloud calls.
 
+After checking the media URL, model preparation runs alongside audio download
+and conversion. Transcription starts when both are ready. Cache hits skip this
+preparation, and `--no-download` still fails before fetching audio if the model
+is missing. Failed preparation cancels the other branch and removes partial
+model downloads.
+
 `tscribe` shells out to [yt-dlp](https://github.com/yt-dlp/yt-dlp) for
 downloading, [ffmpeg](https://ffmpeg.org/) for audio conversion, and embeds
 [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (via

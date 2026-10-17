@@ -83,4 +83,48 @@ async fn checksum_mismatch_returns_error() {
     let dir = tempdir().unwrap();
     let err = download(&model, dir.path(), |_, _| {}).await.unwrap_err();
     assert_eq!(err.exit_code(), 6);
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+}
+
+#[tokio::test]
+async fn cancelling_a_partial_download_removes_the_temporary_file() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url =
+        Box::leak(format!("http://{}/model", listener.local_addr().unwrap()).into_boxed_str());
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = [0; 4096];
+        assert!(stream.read(&mut request).await.unwrap() > 0);
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\npartial")
+            .await
+            .unwrap();
+        std::future::pending::<()>().await;
+    });
+    let model = Model {
+        name: "test",
+        size_mb: 0,
+        url,
+        sha256: "unused",
+        multilingual: false,
+    };
+    let dir = tempdir().unwrap();
+    let (sent, received) = tokio::sync::oneshot::channel();
+    let sent = std::sync::Mutex::new(Some(sent));
+    {
+        let download = download(&model, dir.path(), |_, _| {
+            if let Some(sent) = sent.lock().unwrap().take() {
+                let _ = sent.send(());
+            }
+        });
+        tokio::pin!(download);
+        tokio::select! {
+            result = &mut download => panic!("download should still be streaming: {result:?}"),
+            result = tokio::time::timeout(std::time::Duration::from_secs(5), received) => { result.unwrap().unwrap(); }
+        }
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+    server.abort();
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
 }

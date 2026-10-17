@@ -102,15 +102,23 @@ pub fn verify(model: &Model, path: &Path) -> Result<()> {
     }
 }
 
+async fn verify_async(model: &Model, path: &Path) -> Result<()> {
+    let model = model.clone();
+    let path = path.to_owned();
+    tokio::task::spawn_blocking(move || verify(&model, &path))
+        .await
+        .map_err(|error| Error::ModelDownload(format!("checksum task: {error}")))?
+}
+
 /// Download a model to its target path with progress callbacks.
-/// Verifies SHA256 after download. Atomic via .tmp + rename.
+/// Verifies SHA256 after download, then atomically persists a unique temporary file.
 pub async fn download<F>(model: &Model, model_dir: &Path, on_progress: F) -> Result<PathBuf>
 where
     F: Fn(u64, Option<u64>) + Send + Sync,
 {
     std::fs::create_dir_all(model_dir)?;
     let dest = model_path(model_dir, model.name);
-    let tmp = dest.with_extension("bin.tmp");
+    let mut file = tempfile::NamedTempFile::new_in(model_dir)?;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60 * 60))
@@ -132,7 +140,6 @@ where
     }
 
     let total = resp.content_length();
-    let mut file = std::fs::File::create(&tmp)?;
     let mut stream = resp.bytes_stream();
     let mut downloaded: u64 = 0;
 
@@ -142,16 +149,13 @@ where
         downloaded += chunk.len() as u64;
         on_progress(downloaded, total);
     }
-    file.sync_all()?;
-    drop(file);
+    file.as_file().sync_all()?;
 
-    // Verify checksum, abort if bad.
-    if let Err(e) = verify(model, &tmp) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e);
-    }
-
-    std::fs::rename(&tmp, &dest)?;
+    // Keep the temporary file owned by this future so cancellation removes it.
+    // Hashing can take seconds for a large model; keep it off the async runtime.
+    verify_async(model, file.path()).await?;
+    file.persist(&dest)
+        .map_err(|error| Error::Io(error.error))?;
     Ok(dest)
 }
 
@@ -164,7 +168,7 @@ where
     let dest = model_path(model_dir, model.name);
     if dest.exists() {
         // Verify cached file; on mismatch, re-download.
-        if verify(model, &dest).is_ok() {
+        if verify_async(model, &dest).await.is_ok() {
             return Ok(dest);
         }
         std::fs::remove_file(&dest)?;
