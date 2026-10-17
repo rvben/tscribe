@@ -70,6 +70,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5](https://github.com/rvben/tscribe/compare/v0.2.4...v0.2.5) - 2026-10-17
+
+### Fixed
+
+- **deps**: patch TLS and remove unused YAML dependency ([94bfb80](https://github.com/rvben/tscribe/commit/94bfb808d4b85d1bda35077a2a01cb0844e92bdd))
+
+### Performance
+
+- **pipeline**: overlap model preparation with audio processing ([5657d7d](https://github.com/rvben/tscribe/commit/5657d7de4dff0f19c3284fbd59a73d3d8fccb566))
+
 ## [0.2.4](https://github.com/rvben/tscribe/compare/v0.2.3...v0.2.4) - 2026-09-27
 
 ### Fixed
