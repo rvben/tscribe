@@ -31,6 +31,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.100.0
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
 
@@ -102,6 +103,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.100.0
       - name: Authenticate to crates.io via Trusted Publishing
         id: crates_io_auth
         # v1.0.5
