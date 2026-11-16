@@ -176,6 +176,22 @@ tscribe completions <shell>  Generate shell completions
 130 Interrupted
 ```
 
+## Backend adoption policy
+
+Review the exact SDK and model licenses before adopting a transcription backend
+or changing the default. Check redistribution, commercial use, attribution,
+mandatory telemetry or activation, usage limits, and restrictions on outputs.
+Prefer permissively licensed backends without compulsory reporting. Benchmark
+results alone do not establish suitability, and a helper process does not remove
+license obligations.
+
+Voz was evaluated on 2026-11-16 and is intentionally excluded from the main
+branch despite its speed and Dutch accuracy gains. Its source-available terms,
+compulsory reporting, redistribution restrictions, and differing license-version
+references require an explicit licensing decision before any future adoption.
+The experimental integration must not be merged as a routine performance upgrade.
+Whisper remains the default and supported backend.
+
 ## License
 
 `tscribe` is released under the [MIT License](LICENSE). Third-party dependencies
