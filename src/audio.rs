@@ -1,5 +1,7 @@
 use crate::deps::{self, FFMPEG};
 use crate::error::{Error, Result};
+use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
@@ -40,8 +42,10 @@ pub async fn convert_to_wav(input: &Path, output_dir: &Path) -> Result<PathBuf> 
 
 /// Read a 16kHz mono PCM s16le WAV into f32 samples in [-1.0, 1.0].
 pub fn read_wav_samples(path: &Path) -> Result<Vec<f32>> {
-    let mut reader =
-        hound::WavReader::open(path).map_err(|e| Error::Audio(format!("open wav: {e}")))?;
+    let file = File::open(path).map_err(|e| Error::Audio(format!("open wav: {e}")))?;
+    let file_len = file.metadata().map_or(0, |metadata| metadata.len());
+    let mut reader = hound::WavReader::new(BufReader::new(file))
+        .map_err(|e| Error::Audio(format!("open wav: {e}")))?;
     let spec = reader.spec();
     if spec.sample_rate != 16_000 || spec.channels != 1 || spec.bits_per_sample != 16 {
         return Err(Error::Audio(format!(
@@ -49,9 +53,13 @@ pub fn read_wav_samples(path: &Path) -> Result<Vec<f32>> {
             spec.sample_rate, spec.channels, spec.bits_per_sample
         )));
     }
-    let samples: std::result::Result<Vec<i16>, _> = reader.samples::<i16>().collect();
-    let samples = samples.map_err(|e| Error::Audio(format!("decode wav: {e}")))?;
-    Ok(samples.into_iter().map(|s| s as f32 / 32768.0).collect())
+    let capacity = u64::from(reader.duration()).min(file_len / 2);
+    let mut samples = Vec::with_capacity(capacity as usize);
+    for sample in reader.samples::<i16>() {
+        let sample = sample.map_err(|e| Error::Audio(format!("decode wav: {e}")))?;
+        samples.push(f32::from(sample) / 32768.0);
+    }
+    Ok(samples)
 }
 
 #[cfg(test)]
@@ -79,6 +87,9 @@ mod tests {
         write_test_wav(&p, 16000, 1);
         let samples = read_wav_samples(&p).unwrap();
         assert_eq!(samples.len(), 16000);
+        assert!(samples.iter().enumerate().all(|(index, sample)| {
+            sample.to_bits() == ((index % 100) as f32 / 32768.0).to_bits()
+        }));
     }
 
     #[test]
