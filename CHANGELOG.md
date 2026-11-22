@@ -70,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/rvben/tscribe/compare/v0.2.5...v0.3.0) - 2026-11-22
+
 ### Changed
 
 - **Breaking Rust API change.** Public timestamp fields use `jiff::Timestamp`
@@ -82,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receive an argument error for nonpositive counts.
 - Bypass the transcript cache entirely with `--no-cache` and reject combining
   it with `--refresh`.
+
+- **deps**: update dependencies and clear audit findings ([37ffe43](https://github.com/rvben/tscribe/commit/37ffe430f3f81f0a13e37d2f82654f77c400551b))
+- **deps**: update certificate validation dependencies ([f0eeefb](https://github.com/rvben/tscribe/commit/f0eeefb5b18146a566e87960ca4f23300f1b90c5))
+
+### Performance
+
+- **audio**: decode WAV directly into float samples ([7ae27f7](https://github.com/rvben/tscribe/commit/7ae27f7b27a65c97f1c38747f3a3caddd3cca08a))
 
 ## [0.2.5](https://github.com/rvben/tscribe/compare/v0.2.4...v0.2.5) - 2026-10-17
 
