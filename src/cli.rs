@@ -109,8 +109,8 @@ pub struct TranscribeArgs {
     #[arg(long)]
     pub timestamps: bool,
 
-    /// Skip cache lookup and don't write.
-    #[arg(long)]
+    /// Bypass the transcript cache entirely.
+    #[arg(long, conflicts_with = "refresh")]
     pub no_cache: bool,
 
     /// Skip cache lookup but overwrite cache entry.
@@ -125,8 +125,8 @@ pub struct TranscribeArgs {
     #[arg(short, long, conflicts_with = "verbose")]
     pub quiet: bool,
 
-    /// Whisper thread count (default: physical cores).
-    #[arg(long)]
+    /// Whisper thread count (default: available parallelism).
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..=i64::from(i32::MAX)))]
     pub threads: Option<u32>,
 
     /// Fail instead of prompting to download a model.

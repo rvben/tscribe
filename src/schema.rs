@@ -464,7 +464,9 @@ pub fn build() -> Schema {
                         ty: "boolean",
                         required: false,
                         default: Some(serde_json::Value::Bool(false)),
-                        description: Some("Skip cache lookup and don't write result to cache."),
+                        description: Some(
+                            "Bypass the transcript cache entirely. Conflicts with --refresh.",
+                        ),
                         enum_values: None,
                     },
                     Arg {
@@ -473,7 +475,7 @@ pub fn build() -> Schema {
                         required: false,
                         default: Some(serde_json::Value::Bool(false)),
                         description: Some(
-                            "Skip cache lookup but overwrite cache entry with new result.",
+                            "Skip cache lookup but overwrite cache entry with new result. Conflicts with --no-cache.",
                         ),
                         enum_values: None,
                     },
@@ -491,7 +493,7 @@ pub fn build() -> Schema {
                         required: false,
                         default: None,
                         description: Some(
-                            "Whisper thread count. Default: physical CPU core count.",
+                            "Whisper thread count (1 to 2147483647). Defaults to available parallelism.",
                         ),
                         enum_values: None,
                     },

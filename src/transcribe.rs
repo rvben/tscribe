@@ -10,6 +10,7 @@ pub struct TranscribeOptions<'a> {
 }
 
 pub fn transcribe(samples: &[f32], opts: TranscribeOptions<'_>) -> Result<Vec<Segment>> {
+    validate_threads(opts.threads)?;
     let ctx = WhisperContext::new_with_params(
         opts.model_path
             .to_str()
@@ -46,4 +47,34 @@ pub fn transcribe(samples: &[f32], opts: TranscribeOptions<'_>) -> Result<Vec<Se
         });
     }
     Ok(out)
+}
+
+pub(crate) fn validate_threads(threads: i32) -> Result<()> {
+    if threads < 1 {
+        return Err(Error::BadArg(
+            "Whisper thread count must be positive".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_thread_counts_are_rejected_before_loading_model() {
+        for threads in [0, -1, i32::MIN] {
+            let error = transcribe(
+                &[],
+                TranscribeOptions {
+                    model_path: Path::new("unused-model.bin"),
+                    language: "en",
+                    threads,
+                },
+            )
+            .unwrap_err();
+            assert!(matches!(error, Error::BadArg(message) if message.contains("thread count")));
+        }
+    }
 }

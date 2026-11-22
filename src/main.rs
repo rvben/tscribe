@@ -75,7 +75,7 @@ fn run_transcribe(url: String, cli: Cli, paths: &Paths) -> Result<(), Error> {
     let threads = args
         .threads
         .map(|n| n as i32)
-        .unwrap_or_else(|| num_cpus_physical() as i32);
+        .unwrap_or_else(default_threads);
 
     let opts = PipelineOptions {
         url,
@@ -117,9 +117,9 @@ fn run_transcribe(url: String, cli: Cli, paths: &Paths) -> Result<(), Error> {
     Ok(())
 }
 
-fn num_cpus_physical() -> usize {
+fn default_threads() -> i32 {
     std::thread::available_parallelism()
-        .map(|n| n.get())
+        .map(|n| i32::try_from(n.get()).unwrap_or(i32::MAX))
         .unwrap_or(4)
 }
 

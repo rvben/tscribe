@@ -149,6 +149,22 @@ Override with `TSCRIBE_CACHE_DIR`. Clear with `tscribe cache clear`.
 
 Re-running on a previously-transcribed URL is instant.
 
+Use `--no-cache` to transcribe without reading, writing, or initializing the
+transcript cache. Use `--refresh` to transcribe again and save the result.
+These flags are mutually exclusive.
+
+## Upgrading Rust callers to v0.3.0
+
+Public timestamp fields on `Metadata`, `Transcription`, `Probed`, and
+`IndexEntry` use `jiff::Timestamp` in place of `chrono::DateTime<chrono::Utc>`.
+`uploaded_at` remains optional. If your code names or constructs these types,
+add `jiff = "1"` and update the field types. Parse an RFC 3339 string with
+`let timestamp: jiff::Timestamp = "2026-04-20T21:30:00Z".parse()?;` and get
+whole Unix seconds with `timestamp.as_second()`.
+
+Transcript JSON and the cache still use schema version 1 with RFC 3339
+timestamps. Existing v0.2.5 caches can be reused.
+
 ## Subcommands
 
 ```

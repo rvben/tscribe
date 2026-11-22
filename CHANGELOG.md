@@ -70,6 +70,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking Rust API change.** Public timestamp fields use `jiff::Timestamp`
+  in place of `chrono::DateTime<chrono::Utc>`. Existing transcript caches and
+  JSON output retain schema version 1 and RFC 3339 timestamps.
+
+### Fixed
+
+- Reject zero and out-of-range thread counts before transcription. Rust callers
+  receive an argument error for nonpositive counts.
+- Bypass the transcript cache entirely with `--no-cache` and reject combining
+  it with `--refresh`.
+
 ## [0.2.5](https://github.com/rvben/tscribe/compare/v0.2.4...v0.2.5) - 2026-10-17
 
 ### Fixed

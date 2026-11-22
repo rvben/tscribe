@@ -30,24 +30,28 @@ pub async fn run(
     paths: &Paths,
     reporter: &Reporter,
 ) -> Result<PipelineResult> {
+    transcribe::validate_threads(opts.threads)?;
     let model_name = opts
         .model_name
         .clone()
         .unwrap_or_else(|| default_model_for_lang(&opts.language).to_string());
 
-    let cache = Cache::new(paths.clone())?;
-    let key = Cache::key(&opts.url, &model_name, &opts.language);
-
-    if opts.use_cache
-        && !opts.refresh
-        && let Some(entry) = cache.get(&key)?
-    {
-        reporter.finish(None, format!("⚡ Cache hit: {}", entry.metadata.summary()));
-        return Ok(PipelineResult {
-            entry,
-            from_cache: true,
-        });
-    }
+    let cache = if opts.use_cache || opts.refresh {
+        let cache = Cache::new(paths.clone())?;
+        let key = Cache::key(&opts.url, &model_name, &opts.language);
+        if !opts.refresh
+            && let Some(entry) = cache.get(&key)?
+        {
+            reporter.finish(None, format!("⚡ Cache hit: {}", entry.metadata.summary()));
+            return Ok(PipelineResult {
+                entry,
+                from_cache: true,
+            });
+        }
+        Some((cache, key))
+    } else {
+        None
+    };
 
     let model = model::lookup(&model_name)
         .ok_or_else(|| crate::error::Error::BadArg(model::unknown_model_message(&model_name)))?;
@@ -108,7 +112,7 @@ pub async fn run(
         segments,
     );
 
-    if opts.use_cache || opts.refresh {
+    if let Some((cache, key)) = cache {
         cache.put(&key, &entry)?;
     }
 
@@ -234,6 +238,60 @@ mod tests {
             use_cache: false,
             refresh: false,
             allow_model_download: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn no_cache_does_not_create_or_open_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let absent = dir.path().join("absent-cache");
+        let blocked = dir.path().join("blocked-cache");
+        std::fs::write(&blocked, "cache path is not a directory").unwrap();
+        for root in [&absent, &blocked] {
+            let mut opts = options("https://example.com/audio.wav".into());
+            opts.model_name = Some("unknown-model".into());
+            let paths = Paths::with_root(root.clone());
+            let result = run(opts, &paths, &Reporter::new(Verbosity::Quiet)).await;
+            assert!(
+                matches!(result, Err(crate::error::Error::BadArg(message)) if message.contains("unknown-model"))
+            );
+            assert!(!paths.version_file.exists());
+        }
+        assert!(!absent.exists());
+    }
+
+    #[tokio::test]
+    async fn invalid_thread_counts_are_rejected_even_for_cache_hits() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::with_root(dir.path().into());
+        let entry: TranscriptEntry =
+            serde_json::from_str(include_str!("../tests/fixtures/transcript.json")).unwrap();
+        let key = Cache::key(
+            &entry.url,
+            &entry.transcription.model,
+            &entry.transcription.language,
+        );
+        Cache::new(paths.clone())
+            .unwrap()
+            .put(&key, &entry)
+            .unwrap();
+        let reporter = Reporter::new(Verbosity::Quiet);
+        let mut opts = options(entry.url.clone());
+        opts.model_name = Some(entry.transcription.model);
+        opts.language = entry.transcription.language;
+        opts.use_cache = true;
+        assert!(
+            run(opts.clone(), &paths, &reporter)
+                .await
+                .unwrap()
+                .from_cache
+        );
+        for threads in [0, -1] {
+            opts.threads = threads;
+            assert!(matches!(
+                run(opts.clone(), &paths, &reporter).await,
+                Err(crate::error::Error::BadArg(message)) if message.contains("thread count")
+            ));
         }
     }
 

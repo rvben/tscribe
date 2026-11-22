@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "url": "https://example.com/hour.wav",
+  "metadata": {
+    "title": "hour",
+    "author": null,
+    "site": "example.com",
+    "duration_seconds": null,
+    "uploaded_at": "2026-11-22T00:00:00Z"
+  },
+  "transcription": {
+    "model": "small.en",
+    "language": "en",
+    "transcribed_at": "2026-11-22T15:06:37.407433Z",
+    "tscribe_version": "0.2.5",
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 29.64,
+        "text": " CHAPTER III."
+      },
+      {
+        "start": 29.64,
+        "end": 32.72,
+        "text": " The Ending of War."
+      }
+    ]
+  }
+}
