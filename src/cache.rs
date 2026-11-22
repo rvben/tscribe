@@ -19,7 +19,7 @@ pub struct IndexEntry {
     pub title: Option<String>,
     pub model: String,
     pub language: String,
-    pub transcribed_at: chrono::DateTime<chrono::Utc>,
+    pub transcribed_at: jiff::Timestamp,
 }
 
 pub struct Cache {

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 1;
@@ -17,14 +17,14 @@ pub struct Metadata {
     pub author: Option<String>,
     pub site: Option<String>,
     pub duration_seconds: Option<u64>,
-    pub uploaded_at: Option<DateTime<Utc>>,
+    pub uploaded_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Transcription {
     pub model: String,
     pub language: String,
-    pub transcribed_at: DateTime<Utc>,
+    pub transcribed_at: Timestamp,
     pub tscribe_version: String,
     pub segments: Vec<Segment>,
 }
@@ -89,8 +89,7 @@ mod tests {
         assert_eq!(entry.transcription.segments.len(), 3);
         assert_eq!(entry.duration_seconds(), 12.0);
 
-        let serialized = serde_json::to_string_pretty(&entry).unwrap();
-        let reparsed: TranscriptEntry = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(entry, reparsed);
+        let legacy: serde_json::Value = serde_json::from_str(FIXTURE).unwrap();
+        assert_eq!(serde_json::to_value(&entry).unwrap(), legacy);
     }
 }

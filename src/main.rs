@@ -155,7 +155,7 @@ fn run_cache(
                             "url": entry.url,
                             "model": entry.model,
                             "language": entry.language,
-                            "date": entry.transcribed_at.format("%Y-%m-%d").to_string(),
+                            "date": entry.transcribed_at.strftime("%Y-%m-%d").to_string(),
                             "title": entry.title
                         });
                         if let Some(ref af) = active_fields {
@@ -192,7 +192,7 @@ fn run_cache(
                     println!(
                         "{:<12}  {:<10}  {:<width$}  {}",
                         &key[..12.min(key.len())],
-                        entry.transcribed_at.format("%Y-%m-%d"),
+                        entry.transcribed_at.strftime("%Y-%m-%d"),
                         entry.model,
                         entry.url,
                         width = model_w

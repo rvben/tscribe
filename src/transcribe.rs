@@ -33,23 +33,17 @@ pub fn transcribe(samples: &[f32], opts: TranscribeOptions<'_>) -> Result<Vec<Se
         .full(params, samples)
         .map_err(|e| Error::Transcribe(format!("full: {e}")))?;
 
-    let n_segments = state
-        .full_n_segments()
-        .map_err(|e| Error::Transcribe(format!("count segments: {e}")))?;
-    let mut out = Vec::with_capacity(n_segments as usize);
-    for i in 0..n_segments {
-        let text = state
-            .full_get_segment_text(i)
-            .map_err(|e| Error::Transcribe(format!("get text: {e}")))?;
-        let start = state
-            .full_get_segment_t0(i)
-            .map_err(|e| Error::Transcribe(format!("get t0: {e}")))? as f64
-            / 100.0;
-        let end = state
-            .full_get_segment_t1(i)
-            .map_err(|e| Error::Transcribe(format!("get t1: {e}")))? as f64
-            / 100.0;
-        out.push(Segment { start, end, text });
+    let mut out = Vec::with_capacity(state.full_n_segments() as usize);
+    for segment in state.as_iter() {
+        let text = segment
+            .to_str()
+            .map_err(|e| Error::Transcribe(format!("get text: {e}")))?
+            .to_owned();
+        out.push(Segment {
+            start: segment.start_timestamp() as f64 / 100.0,
+            end: segment.end_timestamp() as f64 / 100.0,
+            text,
+        });
     }
     Ok(out)
 }

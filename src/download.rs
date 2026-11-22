@@ -1,7 +1,7 @@
 use crate::deps::{self, YT_DLP};
 use crate::error::{Error, Result};
 use crate::transcript::Metadata;
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use jiff::{Timestamp, civil::Date, tz::TimeZone};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
@@ -33,7 +33,7 @@ pub struct Probed {
     pub author: Option<String>,
     pub duration_seconds: Option<u64>,
     pub site: Option<String>,
-    pub uploaded_at: Option<DateTime<Utc>>,
+    pub uploaded_at: Option<Timestamp>,
 }
 
 impl Probed {
@@ -234,16 +234,13 @@ fn site_from_url(url: &str) -> Option<String> {
     })
 }
 
-fn parse_upload_date(s: Option<&str>) -> Option<DateTime<Utc>> {
+fn parse_upload_date(s: Option<&str>) -> Option<Timestamp> {
     let s = s?;
-    if s.len() != 8 {
+    if s.len() != 8 || !s.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
-    let y: i32 = s[..4].parse().ok()?;
-    let m: u32 = s[4..6].parse().ok()?;
-    let d: u32 = s[6..8].parse().ok()?;
-    let date = NaiveDate::from_ymd_opt(y, m, d)?;
-    Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0)?))
+    let date = Date::strptime("%Y%m%d", s).ok()?;
+    TimeZone::UTC.to_timestamp(date.at(0, 0, 0, 0)).ok()
 }
 
 #[cfg(test)]
@@ -253,12 +250,14 @@ mod tests {
     #[test]
     fn parses_upload_date() {
         let dt = parse_upload_date(Some("20260101")).unwrap();
-        assert_eq!(dt.format("%Y-%m-%d").to_string(), "2026-01-01");
+        assert_eq!(dt.to_string(), "2026-01-01T00:00:00Z");
     }
 
     #[test]
     fn rejects_bad_upload_date() {
         assert!(parse_upload_date(Some("nope")).is_none());
+        assert!(parse_upload_date(Some("20260229")).is_none());
+        assert!(parse_upload_date(Some("202é101")).is_none());
         assert!(parse_upload_date(None).is_none());
     }
 

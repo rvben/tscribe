@@ -7,7 +7,7 @@ use crate::model;
 use crate::progress::Reporter;
 use crate::transcribe::{self, TranscribeOptions};
 use crate::transcript::{Metadata, SCHEMA_VERSION, Segment, TranscriptEntry, Transcription};
-use chrono::Utc;
+use jiff::Timestamp;
 
 #[derive(Debug, Clone)]
 pub struct PipelineOptions {
@@ -207,7 +207,7 @@ fn build_entry(
         transcription: Transcription {
             model,
             language,
-            transcribed_at: Utc::now(),
+            transcribed_at: Timestamp::now(),
             tscribe_version: env!("CARGO_PKG_VERSION").to_string(),
             segments,
         },

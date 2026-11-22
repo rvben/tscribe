@@ -10,7 +10,7 @@ use std::io::Write;
 /// minimal stderr logger that prints at Debug level. In non-verbose mode no
 /// logger is registered, so records are silently dropped.
 pub fn init(verbose: bool) {
-    whisper_rs::install_whisper_log_trampoline();
+    whisper_rs::install_logging_hooks();
 
     if !verbose {
         return;

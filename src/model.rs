@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
-use std::io::Write as _;
+use std::io::{ErrorKind, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -85,7 +85,15 @@ pub fn model_path(model_dir: &Path, name: &str) -> PathBuf {
 pub fn sha256_file(path: &Path) -> Result<String> {
     let mut file = std::fs::File::open(path)?;
     let mut hasher = Sha256::new();
-    std::io::copy(&mut file, &mut hasher)?;
+    let mut buffer = [0; 8192];
+    loop {
+        match file.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => hasher.update(&buffer[..read]),
+            Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
     Ok(hex::encode(hasher.finalize()))
 }
 
@@ -120,7 +128,13 @@ where
     let dest = model_path(model_dir, model.name);
     let mut file = tempfile::NamedTempFile::new_in(model_dir)?;
 
+    // Use the bundled roots on every platform for model downloads.
+    let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let tls = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
     let client = reqwest::Client::builder()
+        .tls_backend_preconfigured(tls)
         .timeout(std::time::Duration::from_secs(60 * 60))
         .build()
         .map_err(|e| Error::ModelDownload(e.to_string()))?;

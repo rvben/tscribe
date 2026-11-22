@@ -89,11 +89,8 @@ fn frontmatter(entry: &TranscriptEntry) -> String {
         yaml_quote(&entry.transcription.model)
     ));
     out.push_str(&format!(
-        "transcribed_at: {}\n",
-        entry
-            .transcription
-            .transcribed_at
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        "transcribed_at: {:.0}\n",
+        entry.transcription.transcribed_at
     ));
     out.push_str(&format!(
         "tscribe_version: {}\n",
