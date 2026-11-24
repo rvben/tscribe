@@ -21,11 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           toolchain: 1.100.0
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
       - name: Install yt-dlp + ffmpeg (Linux)
         if: runner.os == 'Linux'
@@ -40,10 +40,14 @@ jobs:
           brew install yt-dlp ffmpeg
 
       - name: Install nextest
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@2b545d4fd42fdd72ed2a44eab8fedd1850e8f731 # nextest
+        with:
+          tool: nextest
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
+        uses: taiki-e/install-action@d5b78900754d505a5f5f996e23d5f039b418e2f3 # cargo-deny
+        with:
+          tool: cargo-deny
 
       - name: fmt check
         run: cargo fmt --all --check
